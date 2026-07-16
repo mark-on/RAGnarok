@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragnarok-eval"
+version = "0.1.0"
+description = "Local evaluation framework for the RAGnarok RAG security benchmark"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "CC-BY-4.0"}
+dependencies = [
+  "typer>=0.12", # typed, discoverable command-line interface
+  "questionary>=2.0", # cross-platform arrow-key setup wizard
+  "keyring>=25.0", # Windows Credential Locker, macOS Keychain, and Linux Secret Service
+  "pydantic>=2.7", # validated runtime schemas and configuration
+  "pydantic-settings>=2.2", # environment-aware settings primitives
+  "PyYAML>=6.0", # human-readable experiment configuration
+  "httpx>=0.27", # asynchronous model-provider HTTP transport
+  "pandas>=2.0", # stable CSV input/output and result analysis
+  "numpy>=1.26", # local cosine-similarity vector search
+  "sentence-transformers>=3.0", # local semantic embeddings
+  "pypdf>=4.0", # PDF text and metadata extraction
+  "matplotlib>=3.8", # report charts
+  "reportlab>=4.0", # presentation-ready PDF reports
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+ragnarok = "ragnarok.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
