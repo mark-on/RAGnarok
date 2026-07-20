@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import re
 from abc import ABC, abstractmethod
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 import httpx
 
@@ -19,17 +19,18 @@ SECRET_PATTERNS = [
 
 def redact(value: str) -> str:
     for pattern in SECRET_PATTERNS:
-        value = pattern.sub(lambda match: (match.group(1) + match.group(2) if match.lastindex and match.lastindex >= 2 else "") + "[REDACTED]", value)
+        value = pattern.sub("[REDACTED]", value)
     return value[:1000]
 
 
-def nested_get(payload, path: str | None, default=None):
-    if not path:
-        return default
+def nested_get(payload, path: str, default=None):
     current = payload
     for part in path.split("."):
         if isinstance(current, list):
-            current = current[int(part)]
+            try:
+                current = current[int(part)]
+            except (ValueError, IndexError):
+                return default
         elif isinstance(current, dict):
             current = current.get(part, default)
         else:
@@ -43,7 +44,6 @@ class ModelProvider(ABC):
     def __init__(self, config: ModelConfig, runtime: RuntimeConfig):
         self.config = config
         self.runtime = runtime
-        self.retry_count = 0
 
     @abstractmethod
     async def generate(self, request: ProviderRequest) -> ProviderResult: ...
@@ -56,21 +56,28 @@ class ModelProvider(ABC):
         for attempt in range(self.runtime.retries + 1):
             try:
                 return await operation()
-            except (httpx.HTTPError, asyncio.TimeoutError, ValueError) as exc:
+            except (httpx.HTTPError, asyncio.TimeoutError, ValueError, KeyError) as exc:
                 last_error = exc
-                if attempt == self.runtime.retries:
-                    break
-                self.retry_count += 1
-                await asyncio.sleep(self.runtime.retry_backoff_seconds * (2 ** attempt))
-        return ProviderResult(provider=self.name, model=self.config.model, error_type=type(last_error).__name__, error_message=redact(str(last_error)))
+                if attempt < self.runtime.retries:
+                    await asyncio.sleep(self.runtime.retry_backoff_seconds * (2**attempt))
+        return ProviderResult(
+            provider=self.name,
+            model=self.config.model,
+            error_type=type(last_error).__name__,
+            error_message=redact(str(last_error)),
+        )
 
 
 def provider_for(config: ModelConfig, runtime: RuntimeConfig) -> ModelProvider:
+    from .anthropic import AnthropicProvider
     from .custom_http import CustomHttpProvider
-    from .mock import MockProvider
     from .ollama import OllamaProvider
     from .openai_compatible import OpenAICompatibleProvider
 
-    mapping = {"mock": MockProvider, "ollama": OllamaProvider, "openai_compatible": OpenAICompatibleProvider, "custom_http": CustomHttpProvider}
-    return mapping[config.adapter](config, runtime)
-
+    providers = {
+        "ollama": OllamaProvider,
+        "openai": OpenAICompatibleProvider,
+        "anthropic": AnthropicProvider,
+        "custom_http": CustomHttpProvider,
+    }
+    return providers[config.adapter](config, runtime)

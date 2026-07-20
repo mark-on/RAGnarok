@@ -1,4 +1,3 @@
-from .loader import apply_filters, conversations, load_dataset, validate_contract
+from .loader import DatasetTable, conversations, load_dataset
 
-__all__ = ["apply_filters", "conversations", "load_dataset", "validate_contract"]
-
+__all__ = ["DatasetTable", "conversations", "load_dataset"]

@@ -1,47 +1,55 @@
 from __future__ import annotations
 
-from collections import defaultdict
+import csv
+from collections import OrderedDict
+from dataclasses import dataclass
 from pathlib import Path
 
-import pandas as pd
 
-from ..schemas import ORIGINAL_COLUMNS
-
-
-def load_dataset(path: Path) -> pd.DataFrame:
-    frame = pd.read_csv(path, keep_default_na=False, dtype=str)
-    validate_contract(frame)
-    return frame
+@dataclass(frozen=True)
+class DatasetTable:
+    rows: list[dict[str, str]]
 
 
-def validate_contract(frame: pd.DataFrame) -> None:
-    if list(frame.columns) != ORIGINAL_COLUMNS:
-        raise ValueError(f"dataset must contain exactly the 17 benchmark columns: {ORIGINAL_COLUMNS}")
-    if frame["case_id"].duplicated().any():
-        raise ValueError("case_id values must be unique")
-    grouped = conversations(frame)
-    for conversation_id, rows in grouped:
-        indexes = [int(value) for value in rows["turn_index"]]
-        if indexes != list(range(1, len(rows) + 1)):
-            raise ValueError(f"{conversation_id}: non-sequential turn indexes")
-        if rows.iloc[0]["is_continuation"] != "false":
-            raise ValueError(f"{conversation_id}: first turn must not be a continuation")
-        if any(value != "true" for value in rows.iloc[1:]["is_continuation"]):
-            raise ValueError(f"{conversation_id}: later turns must be continuations")
+def load_dataset(path: Path) -> DatasetTable:
+    if not path.is_file():
+        raise ValueError(f"dataset does not exist: {path}")
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if not reader.fieldnames or "prompt" not in reader.fieldnames:
+            raise ValueError("dataset must contain a 'prompt' column")
+        rows = [{key: value or "" for key, value in row.items()} for row in reader]
+    if not rows:
+        raise ValueError("dataset contains no prompt rows")
+
+    seen_cases: set[str] = set()
+    conversation_turns: dict[str, int] = {}
+    for position, row in enumerate(rows, 1):
+        if not row["prompt"].strip():
+            raise ValueError(f"dataset row {position} has an empty prompt")
+        case_id = row.get("case_id", "").strip() or f"case-{position:04d}"
+        if case_id in seen_cases:
+            raise ValueError(f"duplicate case_id: {case_id}")
+        seen_cases.add(case_id)
+        conversation_id = row.get("conversation_id", "").strip() or case_id
+        expected_turn = conversation_turns.get(conversation_id, 0) + 1
+        raw_turn = row.get("turn_index", "").strip()
+        try:
+            turn_index = int(raw_turn) if raw_turn else expected_turn
+        except ValueError as exc:
+            raise ValueError(f"{case_id}: turn_index must be an integer") from exc
+        if turn_index != expected_turn:
+            raise ValueError(f"{conversation_id}: expected turn {expected_turn}, found {turn_index}")
+        conversation_turns[conversation_id] = turn_index
+        row["case_id"] = case_id
+        row["conversation_id"] = conversation_id
+        row["turn_index"] = str(turn_index)
+        row["is_continuation"] = "true" if turn_index > 1 else "false"
+    return DatasetTable(rows)
 
 
-def conversations(frame: pd.DataFrame):
-    ordered = frame.assign(_turn=frame["turn_index"].astype(int)).sort_values(["conversation_id", "_turn"])
-    return [(key, group.drop(columns="_turn")) for key, group in ordered.groupby("conversation_id", sort=False)]
-
-
-def apply_filters(frame: pd.DataFrame, **filters) -> pd.DataFrame:
-    result = frame
-    mapping = {"model": None, "case_id": "case_id", "conversation_id": "conversation_id", "domain": "domain", "attack_vector": "attack_vector"}
-    for name, column in mapping.items():
-        value = filters.get(name)
-        if value and column:
-            result = result[result[column] == value]
-    limit = filters.get("limit")
-    return result.head(limit) if limit else result
-
+def conversations(rows: list[dict[str, str]]) -> list[list[dict[str, str]]]:
+    grouped: OrderedDict[str, list[dict[str, str]]] = OrderedDict()
+    for row in rows:
+        grouped.setdefault(row["conversation_id"], []).append(row)
+    return list(grouped.values())
