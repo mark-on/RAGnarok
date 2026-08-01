@@ -21,6 +21,12 @@ OUTPUT_COLUMNS = [
     "retrieved_sources",
     "response",
     "status",
+    "judge_mode",
+    "judge_model",
+    "judge_provider",
+    "judge_response",
+    "judge_reason",
+    "judge_error",
     "error",
 ]
 

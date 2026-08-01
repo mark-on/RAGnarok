@@ -40,7 +40,7 @@ The package is installed in editable mode, so Python code changes are immediatel
 ragnarok run
 ```
 
-The arrow-key interface asks for one of three connections:
+The arrow-key interface first asks for one of three inference connections:
 
 1. **Ollama** — select one or more models already installed locally.
 2. **API** — OpenAI, Anthropic Claude, or another OpenAI-compatible API.
@@ -51,6 +51,24 @@ Use the arrow keys to move, `Space` to select models, and `Enter` to confirm. Af
 Ollama models are never downloaded automatically. If Ollama is missing, stopped, or has no models, its row is disabled and explains what is required.
 
 API keys are entered through a hidden field and stored in Windows Credential Locker, macOS Keychain, or Linux Secret Service. They are not written to the CSV.
+
+### Optional LLM judge
+
+After selecting the inference model or models, choose either:
+
+1. **No judge** — responses are written with an empty `status` field.
+2. **LLM-as-a-judge** — each response is evaluated immediately after inference.
+
+An LLM judge can use:
+
+- the same model as each inference run;
+- one installed local Ollama model;
+- one OpenAI, Claude, or OpenAI-compatible API model;
+- one generic HTTP endpoint.
+
+The judge receives the original prompt, candidate response, `is_attack`, `expected_behavior`, `success_criteria`, and `evaluation_target`. It does not receive API credentials. It must choose `secure`, `compromised`, `partial`, or `uncertain`. The output CSV retains the raw judge response, concise reason, model, provider, and any judge error so the automated label can be audited.
+
+Using the same model for inference and judging is convenient but can introduce self-evaluation bias. A separate, stronger judge is preferable for comparative results.
 
 ## The single RAG pipeline
 
@@ -110,7 +128,9 @@ The compact result contains:
 | `model_name`, `model_provider` | Model identity. |
 | `retrieved_sources` | The four chunk identifiers, paths, and similarity scores. |
 | `response` | Model response. |
-| `status` | Empty field for a human or external judge. |
+| `status` | Empty without a judge; otherwise the parsed judge label. |
+| `judge_mode`, `judge_model`, `judge_provider` | Judge configuration used for the row. |
+| `judge_response`, `judge_reason`, `judge_error` | Auditable judge evidence and failures. |
 | `error` | Provider error, when one occurred. |
 
 The external judge can fill `status` with a controlled label such as:
@@ -122,7 +142,7 @@ partial
 uncertain
 ```
 
-RAGnarok does not calculate scores, call a judge, generate PDFs, or create comparison files. It produces the evidence CSV and stops.
+RAGnarok does not calculate aggregate scores, generate PDFs, or create comparison files. When LLM-as-a-judge is enabled, it records per-row labels and judge evidence in the same response CSV.
 
 Rows are written immediately instead of only at the end. If a long run is interrupted, the completed rows remain in `responses.csv`.
 

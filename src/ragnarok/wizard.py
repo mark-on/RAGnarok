@@ -116,6 +116,14 @@ def _credential_id(value: str) -> str:
 
 
 def capture_credential(credential_id: str, label: str, pending: dict[str, str]) -> str:
+    if credential_id in pending:
+        action = select(
+            f"A {label} credential was entered earlier in this setup",
+            [Choice("Use the entered credential", "use"), Choice("Replace credential", "replace")],
+            "use",
+        )
+        if action == "use":
+            return pending[credential_id]
     try:
         existing = get_stored_credential(credential_id)
     except CredentialError as exc:
@@ -273,13 +281,20 @@ def configure_api(pending: dict[str, str], *, multiple: bool = True) -> tuple[li
         else {"Authorization": f"Bearer {key}"}
     )
     discovered = discover_api_models(base_url, headers)
+    if "openrouter.ai" in base_url.lower():
+        discovered = sorted(set(discovered) | {"openrouter/free"})
     if discovered:
+        manual = "__manual_model__"
         choices = [Choice(name, name) for name in discovered]
-        names = (
-            checkbox(f"Select one or more {label} models", choices)
-            if multiple
-            else [select(f"Select the {label} model", choices)]
-        )
+        choices.append(Choice("Enter a model identifier manually", manual))
+        if multiple:
+            names = checkbox(f"Select one or more {label} models", choices)
+            if manual in names:
+                names = [name for name in names if name != manual]
+                names.append(text(f"{label} model identifier"))
+        else:
+            selected = select(f"Select the {label} model", choices)
+            names = [text(f"{label} model identifier")] if selected == manual else [selected]
     else:
         note("The API model list was unavailable. Enter one model identifier manually.")
         names = [text(f"{label} model identifier")]
@@ -326,6 +341,33 @@ def configure_models(provider: str, pending: dict[str, str], *, multiple: bool) 
     return configure_http(pending)
 
 
+def configure_judge(pending: dict[str, str]) -> tuple[dict, str]:
+    mode = select("Select result evaluation", [
+        Choice("1. No judge — leave status empty", "none"),
+        Choice("2. LLM-as-a-judge", "llm"),
+    ], "none")
+    if mode == "none":
+        return {"mode": "none"}, "No judge"
+
+    availability = ollama_availability()
+    ollama_choice = (
+        Choice("2. Local Ollama model", "ollama")
+        if availability.state == "available"
+        else Choice("2. Local Ollama model", "ollama", disabled=f"Ollama is {availability.state.replace('_', ' ')}")
+    )
+    source = select("Select the judge model", [
+        Choice("1. Same as each inference model", "same"),
+        ollama_choice,
+        Choice("3. API — OpenAI, Claude, or compatible", "api"),
+        Choice("4. HTTP endpoint", "http"),
+    ], "same")
+    if source == "same":
+        return {"mode": "same_as_inference"}, "Same as each inference model"
+
+    models, label = configure_models(source, pending, multiple=False)
+    return {"mode": "model", "model": models[0]}, f"{label}: {models[0]['model']}"
+
+
 def run_configuration_wizard(root: Path) -> tuple[dict, dict[str, str]]:
     questionary.print("\nRAGnarok", style="bold fg:#5f87ff")
     questionary.print(
@@ -336,15 +378,17 @@ def run_configuration_wizard(root: Path) -> tuple[dict, dict[str, str]]:
         pending: dict[str, str] = {}
         provider = choose_provider()
         models, label = configure_models(provider, pending, multiple=True)
+        judge, judge_label = configure_judge(pending)
         note("\nRun summary")
         note(f"Provider: {label}")
         note("Models: " + ", ".join(model["model"] for model in models))
+        note(f"Judge: {judge_label}")
         note(f"Dataset: {root / 'dataset' / 'dataset.csv'}")
         note("RAG: all-MiniLM-L6-v2 · top 4 chunks")
         action = select("Ready", [Choice("Start", "start"), Choice("Go back", "back")], "start")
         if action == "back":
             continue
-        return {"models": models}, pending
+        return {"models": models, "judge": judge}, pending
 
 
 def talk_configuration_wizard(root: Path) -> tuple[dict, dict[str, str]]:

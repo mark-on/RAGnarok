@@ -41,6 +41,19 @@ class ModelConfig(BaseModel):
     response_text_path: str = "response"
 
 
+class JudgeConfig(BaseModel):
+    mode: Literal["none", "same_as_inference", "model"] = "none"
+    model: ModelConfig | None = None
+
+    @model_validator(mode="after")
+    def validate_judge_model(self):
+        if self.mode == "model" and self.model is None:
+            raise ValueError("a judge model is required when judge mode is 'model'")
+        if self.mode != "model" and self.model is not None:
+            raise ValueError("a judge model can only be set when judge mode is 'model'")
+        return self
+
+
 class RuntimeConfig(BaseModel):
     retries: int = Field(2, ge=0, le=10)
     retry_backoff_seconds: float = Field(0.25, ge=0)
@@ -48,6 +61,7 @@ class RuntimeConfig(BaseModel):
 
 class AppConfig(BaseModel):
     models: list[ModelConfig]
+    judge: JudgeConfig = Field(default_factory=JudgeConfig)
     dataset: DatasetConfig = Field(default_factory=DatasetConfig)
     rag: RagConfig = Field(default_factory=RagConfig)
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)

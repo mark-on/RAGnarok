@@ -7,7 +7,9 @@ from pathlib import Path
 
 from .config import AppConfig, ModelConfig
 from .dataset import conversations, load_dataset
+from .judging import JudgeDecision, judge_request, parse_judge_result
 from .models import provider_for
+from .models.base import ModelProvider
 from .pdf import extract_knowledge_base
 from .rag import LocalIndex, SentenceTransformerEmbedder, chunk_units
 from .rag.prompting import inference_messages
@@ -68,6 +70,8 @@ def _source_summary(hits: list[RetrievalHit]) -> str:
 def _result_row(
     source: dict[str, str], model: ModelConfig, provider_name: str,
     hits: list[RetrievalHit], response: str, error: str,
+    judge_mode: str, judge_model: str, judge_provider: str,
+    decision: JudgeDecision,
 ) -> dict[str, str]:
     return {
         "case_id": source["case_id"],
@@ -84,9 +88,47 @@ def _result_row(
         "model_provider": provider_name,
         "retrieved_sources": _source_summary(hits),
         "response": response,
-        "status": "",
+        "status": decision.status,
+        "judge_mode": judge_mode,
+        "judge_model": judge_model,
+        "judge_provider": judge_provider,
+        "judge_response": decision.raw_response,
+        "judge_reason": decision.reason,
+        "judge_error": decision.error,
         "error": error,
     }
+
+
+async def _judge_response(
+    config: AppConfig,
+    source: dict[str, str],
+    response: str,
+    inference_model: ModelConfig,
+    inference_provider: ModelProvider,
+    external_judge_provider: ModelProvider | None,
+) -> tuple[str, str, JudgeDecision]:
+    if config.judge.mode == "none":
+        return "", "", JudgeDecision("", "", "")
+    if not response:
+        return "", "", JudgeDecision("", "", "", "judge skipped because inference failed")
+
+    if config.judge.mode == "same_as_inference":
+        judge_model = inference_model
+        judge_provider = inference_provider
+    else:
+        if config.judge.model is None or external_judge_provider is None:
+            return "", "", JudgeDecision("", "", "", "judge model is unavailable")
+        judge_model = config.judge.model
+        judge_provider = external_judge_provider
+
+    result = await judge_provider.generate(judge_request(
+        source,
+        response,
+        model=judge_model.model,
+        timeout=judge_model.timeout_seconds,
+        max_output_tokens=judge_model.max_output_tokens,
+    ))
+    return judge_model.model, result.provider, parse_judge_result(result)
 
 
 async def run_experiment(
@@ -111,6 +153,11 @@ async def run_experiment(
     _progress(progress, "retrieval", len(table.rows), len(table.rows), f"Retrieved context for {len(table.rows)} prompts")
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
+    external_judge_provider = (
+        provider_for(config.judge.model, config.runtime)
+        if config.judge.mode == "model" and config.judge.model is not None
+        else None
+    )
     output_paths: list[Path] = []
     reserved: set[str] = set()
     for model_position, model in enumerate(config.models, 1):
@@ -141,6 +188,22 @@ async def run_experiment(
                         max_output_tokens=model.max_output_tokens,
                         timeout=model.timeout_seconds,
                     ))
+                    judge_model, judge_provider, decision = await _judge_response(
+                        config,
+                        row,
+                        result.response_text,
+                        model,
+                        provider,
+                        external_judge_provider,
+                    )
+                    if config.judge.mode != "none":
+                        _progress(
+                            progress,
+                            "judge",
+                            completed + 1,
+                            len(table.rows),
+                            f"Judged prompt {completed + 1}/{len(table.rows)}: {decision.status or 'error'}",
+                        )
                     writer.writerow(_result_row(
                         row,
                         model,
@@ -148,6 +211,10 @@ async def run_experiment(
                         hits,
                         result.response_text,
                         result.error_message,
+                        config.judge.mode,
+                        judge_model,
+                        judge_provider,
+                        decision,
                     ))
                     handle.flush()
                     if not result.error_type:

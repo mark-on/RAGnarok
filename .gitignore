@@ -27,4 +27,5 @@ tmp/
 .vscode/
 .~lock.*#
 RAGnarok.bat
-tests/
+dataset/v1_dataset.csv
+knowledge_base_v1/
