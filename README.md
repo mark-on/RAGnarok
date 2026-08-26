@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/ragnarok-logo.png" alt="RAGnarok logo" width="720">
+  <img src="assets/ragnarok-logo-wide.png" alt="RAGnarok logo" width="720">
 </p>
 
 <h1 align="center">RAGnarok</h1>
