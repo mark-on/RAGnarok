@@ -69,3 +69,9 @@ models/
 FRAMEWORK_ARCHITECTURE.md
 GPU_MODEL_PLAN.md
 POISONEDRAG_UNIVERSAL_ADAPTER_NOTES.md
+
+# Optional deployment helpers not required by the end-user package
+.dockerignore
+Dockerfile
+RUNPOD_DEPLOYMENT_GUIDE.md
+ragnarok-vast.bat
