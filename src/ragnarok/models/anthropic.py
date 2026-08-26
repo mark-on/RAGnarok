@@ -24,19 +24,22 @@ class AnthropicProvider(ModelProvider):
         async def operation():
             payload = {
                 "model": request.model,
-                "system": request.system_prompt,
                 "messages": [message.model_dump() for message in request.conversation_messages],
                 "temperature": request.temperature,
                 "max_tokens": request.max_output_tokens,
             }
-            async with httpx.AsyncClient(timeout=request.timeout) as client:
-                response = await client.post(
-                    f"{(self.config.base_url or 'https://api.anthropic.com/v1').rstrip('/')}/messages",
-                    headers=self._headers(),
-                    json=payload,
-                )
-                response.raise_for_status()
-                data = response.json()
+            if request.stop_sequences:
+                payload["stop_sequences"] = request.stop_sequences
+            if request.system_prompt is not None:
+                payload["system"] = request.system_prompt
+            response = await self._http_client().post(
+                f"{(self.config.base_url or 'https://api.anthropic.com/v1').rstrip('/')}/messages",
+                headers=self._headers(),
+                json=payload,
+                timeout=request.timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
             text = "".join(
                 block.get("text", "")
                 for block in data.get("content", [])

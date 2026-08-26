@@ -6,21 +6,6 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 
-class DatasetConfig(BaseModel):
-    path: Path = Path("dataset/dataset.csv")
-    knowledge_base_dir: Path = Path("knowledge_base")
-
-
-class RagConfig(BaseModel):
-    """The single, fixed RAG profile used by every run."""
-
-    chunk_size: int = 900
-    chunk_overlap: int = 120
-    top_k: int = 4
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    cache_dir: Path = Path(".ragnarok/cache")
-
-
 class AuthenticationConfig(BaseModel):
     type: Literal["none", "bearer", "header"] = "none"
     credential_id: str | None = None
@@ -34,42 +19,48 @@ class ModelConfig(BaseModel):
     base_url: str | None = None
     endpoint: str | None = None
     credential_id: str | None = None
-    temperature: float = 0
-    max_output_tokens: int = 1000
-    timeout_seconds: float = 120
+    temperature: float = Field(0, ge=0, le=2)
+    max_output_tokens: int = Field(1000, ge=1, le=4096)
+    timeout_seconds: float = Field(120, gt=0, le=600)
+    reasoning_enabled: bool | None = None
     authentication: AuthenticationConfig = Field(default_factory=AuthenticationConfig)
     response_text_path: str = "response"
 
-
-class JudgeConfig(BaseModel):
-    mode: Literal["none", "same_as_inference", "model"] = "none"
-    model: ModelConfig | None = None
-
     @model_validator(mode="after")
-    def validate_judge_model(self):
-        if self.mode == "model" and self.model is None:
-            raise ValueError("a judge model is required when judge mode is 'model'")
-        if self.mode != "model" and self.model is not None:
-            raise ValueError("a judge model can only be set when judge mode is 'model'")
+    def default_openrouter_reasoning(self):
+        """Keep OpenRouter evaluation calls deterministic and cost-conscious."""
+        if self.reasoning_enabled is None and "openrouter.ai" in (self.base_url or "").lower():
+            self.reasoning_enabled = False
         return self
 
 
 class RuntimeConfig(BaseModel):
     retries: int = Field(2, ge=0, le=10)
     retry_backoff_seconds: float = Field(0.25, ge=0)
+    subject_concurrency: Literal[1] = 1
+    judge_concurrency: int = Field(4, ge=1, le=32)
+    postprocess_workers: int = Field(0, ge=0, le=32)
+
+
+class BenchmarkSelection(BaseModel):
+    id: str
+    options: dict[str, object] = Field(default_factory=dict)
+    judge: ModelConfig | None = None
+    attacker: ModelConfig | None = None
 
 
 class AppConfig(BaseModel):
+    benchmarks: list[BenchmarkSelection]
     models: list[ModelConfig]
-    judge: JudgeConfig = Field(default_factory=JudgeConfig)
-    dataset: DatasetConfig = Field(default_factory=DatasetConfig)
-    rag: RagConfig = Field(default_factory=RagConfig)
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
-    system_prompt_path: Path = Path("prompts/default_system_prompt.txt")
     output_dir: Path = Path("outputs")
 
     @model_validator(mode="after")
     def validate_models(self):
+        if not self.benchmarks:
+            raise ValueError("at least one benchmark is required")
+        if len({benchmark.id for benchmark in self.benchmarks}) != len(self.benchmarks):
+            raise ValueError("benchmark ids must be unique")
         if not self.models:
             raise ValueError("at least one model is required")
         if len({model.id for model in self.models}) != len(self.models):
@@ -79,15 +70,10 @@ class AppConfig(BaseModel):
 
 def config_from_data(data: dict, root: Path | None = None) -> AppConfig:
     base = (root or Path.cwd()).resolve()
+    # Read the v0.2 single-benchmark format so saved configurations remain usable.
+    if "benchmarks" not in data and "benchmark" in data:
+        data = {**data, "benchmarks": [data["benchmark"]]}
     config = AppConfig.model_validate(data)
-    for owner, name in (
-        (config.dataset, "path"),
-        (config.dataset, "knowledge_base_dir"),
-        (config.rag, "cache_dir"),
-        (config, "system_prompt_path"),
-        (config, "output_dir"),
-    ):
-        value = getattr(owner, name)
-        if not value.is_absolute():
-            setattr(owner, name, (base / value).resolve())
+    if not config.output_dir.is_absolute():
+        config.output_dir = (base / config.output_dir).resolve()
     return config

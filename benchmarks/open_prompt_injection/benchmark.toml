@@ -1,0 +1,13 @@
+id = "open_prompt_injection"
+name = "Open-Prompt-Injection"
+upstream_url = "https://github.com/liu00222/Open-Prompt-Injection"
+upstream_commit = "95290f7ce3794c4c52ad3fe8113db2bfcdfe89e0"
+qualification = "transport_only"
+
+[official_run]
+attack_strategy = "combine"
+defense = "no"
+icl_examples = 20
+model_parameter_source = "configs/model_configs/gpt_config.json"
+phases = ["target_task_baseline", "injected_task_baseline", "combined_attack"]
+metrics = ["PNA-T", "PNA-I", "ASV", "MR"]

@@ -1,0 +1,9 @@
+.git
+.venv
+.pytest_cache
+.ragnarok
+outputs
+tmp
+benchmarks/*/workspace/results
+__pycache__
+*.pyc

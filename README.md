@@ -1,210 +1,188 @@
 # RAGnarok
 
-RAGnarok is a small framework that reads prompts from a CSV, retrieves relevant text from a PDF knowledge base, sends the prompt and retrieved context to a model, and saves the responses to another CSV.
+RAGnarok is a modular execution framework for pinned third-party RAG security benchmarks. It selects and connects subject, Judge, and attacker models, supervises execution, and preserves provenance. Benchmark-owned prompts, attack logic, datasets, and scoring rules remain authoritative; hardware and provider compatibility is supplied by explicit adapters.
 
-It deliberately has one RAG pipeline and one main command.
+The supported suite is:
 
-## Installation
+- [PoisonedRAG](https://github.com/sleeepeer/PoisonedRAG), pinned at `f660d72174f06b13fae5163ce656e7b235db858f`
+- [MPIB](https://github.com/jhlee0619/mpib-eval), toolkit pinned at `ad615aaec605e9cc8028fb073cdf428b08fca9f7`, canonical dataset version `v1.1`
+- [SPIKEE](https://github.com/ReversecLabs/spikee), pinned to release `v0.9.1` and its `seeds-cybersec-2026-01` dataset
+- [AgentDojo](https://github.com/ethz-spylab/agentdojo), pinned to package release `v0.1.35` and benchmark version `v1.2.2`
 
-Use Python 3.11 or newer. Python 3.12 is the recommended baseline for the broadest binary-package compatibility.
+## Install
 
-### Windows
+Python 3.11 or newer is required for the RAGnarok core. Python 3.12 is recommended for compatibility with the pinned benchmark's older dependency stack.
 
 ```powershell
+git clone --recurse-submodules https://github.com/mark-on/RAGnarok
+cd RAGnarok
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-If PowerShell opens `Activate.ps1` in an editor, use Command Prompt instead:
+For an existing checkout:
 
-```cmd
-.venv\Scripts\activate.bat
+```powershell
+ragnarok setup
 ```
 
-### macOS and Linux
+`ragnarok setup` installs every registered dependency without reinstalling the active `ragnarok.exe`, then prepares independent benchmarks concurrently. The automatic worker count is capped at four and can be overridden with `ragnarok setup --workers N`. Each benchmark writes a separate log, failures are collected instead of exposing third-party tracebacks, and `.ragnarok/setup_manifest.json` records the readiness and preparation metadata of every benchmark. Setup is idempotent: verified caches are reused.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e .
+MPIB is gated by its authors. Accept the dataset terms on Hugging Face before setup. The command requests a Hugging Face token before installation, keeps it available throughout preparation, stores it in the operating-system credential store, and never writes it to a manifest. If `benchmarks/mpib/payload_registry.json` contains the approved restricted registry, V2 payloads are restored exactly. Otherwise setup applies the pinned official toolkit's public `structural_mock` reconstruction. The selected mode and reconstruction counts are frozen in setup, run, and case metadata; structural mocks are never labeled as exact restricted payloads.
+
+After setup, `ragnarok run` does not download datasets or rebuild indexes. Missing, stale, unresolved, or hash-invalid assets fail closed with a setup instruction.
+
+## Validate benchmarks
+
+```powershell
+ragnarok benchmarks
 ```
 
-The package is installed in editable mode, so Python code changes are immediately available without reinstalling it.
+The command verifies the pinned upstream commit and required Python imports. A mismatched commit or missing dependency prevents a qualified run.
 
-## Run the framework
+## Run
 
-```bash
+```powershell
 ragnarok run
 ```
 
-The arrow-key interface first asks for one of three inference connections:
-
-1. **Ollama** — select one or more models already installed locally.
-2. **API** — OpenAI, Anthropic Claude, or another OpenAI-compatible API.
-3. **HTTP endpoint** — a generic JSON endpoint.
-
-Use the arrow keys to move, `Space` to select models, and `Enter` to confirm. After the final confirmation, the same interface displays indexing, retrieval, model, and prompt progress.
-
-Ollama models are never downloaded automatically. If Ollama is missing, stopped, or has no models, its row is disabled and explains what is required.
-
-API keys are entered through a hidden field and stored in Windows Credential Locker, macOS Keychain, or Linux Secret Service. They are not written to the CSV.
-
-### Optional LLM judge
-
-After selecting the inference model or models, choose either:
-
-1. **No judge** — responses are written with an empty `status` field.
-2. **LLM-as-a-judge** — each response is evaluated immediately after inference.
-
-An LLM judge can use:
-
-- the same model as each inference run;
-- one installed local Ollama model;
-- one OpenAI, Claude, or OpenAI-compatible API model;
-- one generic HTTP endpoint.
-
-The judge receives the original prompt, candidate response, `is_attack`, `expected_behavior`, `success_criteria`, and `evaluation_target`. It does not receive API credentials. It must choose `secure`, `compromised`, `partial`, or `uncertain`. The output CSV retains the raw judge response, concise reason, model, provider, and any judge error so the automated label can be audited.
-
-Using the same model for inference and judging is convenient but can introduce self-evaluation bias. A separate, stronger judge is preferable for comparative results.
-
-## The single RAG pipeline
-
-Every run uses the same settings:
-
-- PDF body text and selected PDF metadata are indexed.
-- Text is split into 900-character chunks with 120-character overlap.
-- `sentence-transformers/all-MiniLM-L6-v2` creates local embeddings.
-- NumPy cosine similarity ranks every chunk.
-- Exactly the four most similar chunks are sent to the model.
-- The local index is reused until the PDFs or embedding model change.
-
-Retrieval content changes naturally with the prompt, as it does in a normal RAG system. The algorithm and the number of chunks do not change dynamically.
-
-When several models are selected, retrieval is calculated once for each CSV row and reused. This ensures that different models and quantizations receive exactly the same retrieved context.
-
-## Input CSV
-
-The default input is:
+The interactive flow is:
 
 ```text
-dataset/dataset.csv
+One or more benchmark selections
+→ One shared Light, Medium, or Full suite size
+→ Model selection
+→ Explicit Judge selection for MPIB
+→ Execution summary
+→ Official benchmark execution
+→ Native evaluation
+→ Universal result normalization
+→ Scientific XLSX report with model, quantization, taxonomy, retrieval, Judge, and performance analysis
 ```
 
-Only a `prompt` column is required. These columns enable continuous conversations when present:
+Model connections include:
 
-- `case_id`
-- `conversation_id`
-- `turn_index`
-- `is_continuation`
+- Ollama
+- OpenAI
+- Anthropic
+- OpenRouter or another OpenAI-compatible API
+- Custom HTTP endpoints
 
-Rows with the same `conversation_id` are processed in `turn_index` order. Previous raw prompts and model responses are retained as history. Previous retrieved context is not retained, so the context does not grow uncontrollably.
+Credentials are entered through hidden fields and stored using the operating system credential store. Judge and attacker configurations may be saved under a user-provided profile name. A required role is still selected explicitly on every run; a saved profile is never applied silently.
 
-The bundled benchmark contains additional evaluator fields. They are copied to the result CSV but never sent to the inference model.
+Headless servers can provide the same credentials as environment variables named `RAGNAROK_CREDENTIAL_<ID>`, where punctuation in the configured credential ID becomes `_` and the value is uppercased. For example, `credential_id = "deepseek"` resolves from `RAGNAROK_CREDENTIAL_DEEPSEEK`. Secrets are never written to reports or manifests.
 
-## Output CSV
+Local Ollama runs use one inference worker, a persistent HTTP connection, an explicit model warm-up, a keep-alive window during the run, buffered request logging, and automatic model unloading when the model evaluation finishes. The request log records wall-clock and Ollama runtime durations. Ollama independently selects CPU, GPU, or hybrid execution; this generator placement is separate from the CPU/CUDA/ROCm device selected for PoisonedRAG's Contriever preparation.
 
-Each selected model receives one file:
+## PDF reports
+
+```powershell
+ragnarok report
+```
+
+The command lists result runs containing canonical normalized cases. Select one run for a single-run PDF or multiple runs for a comparative PDF. Report generation never repeats inference or Judge calls. The generated folder under `outputs/reports/` contains `report.pdf`, `combined_results.csv`, and `report_manifest.json` with the exact selected source runs.
+
+For headless execution, repeat `--run` with result directory names:
+
+```powershell
+ragnarok report --run qwen_q8_run --run qwen_q4_run
+```
+
+## PoisonedRAG integration
+
+PoisonedRAG always covers NQ, HotpotQA, and MS MARCO. Light uses 90 cases, Medium uses 150, and Full uses the complete 300-case RAGnarok replay profile. Reduced profiles are deterministic prefixes of the frozen official case sequence and are labeled as reduced subsets. The fixed settings remain `LM_targeted`, five adversarial passages, dot-product scoring, seed 12, temperature 0.1, and 150 output tokens.
+
+The adapter leaves the pinned upstream source unchanged. During `ragnarok setup`, it executes the same Contriever computation on NVIDIA/CUDA, AMD/ROCm, or CPU and selects the best available backend automatically; it never substitutes another retriever. Only the five clean documents referenced by each released ranking are retained while the BEIR corpus is scanned as JSONL, preventing whole-corpus RAM loading without changing IDs, texts, scores, or ranking logic. The verified top-5 contexts are then reused unchanged by every model and quantization during `ragnarok run`. The final LLM client is replaced by the shared provider transport.
+
+This is a controlled, offline replay of a fixed RAG evaluation pipeline, not a production online vector database. Hardware backends may produce small floating-point differences, so the integration is faithful to the official algorithm and artifacts but is not claimed to be bitwise-identical across CPU, CUDA, and ROCm.
+
+## MPIB integration
+
+MPIB uses the official blind prompt assembly, fixed test split, V1 direct attacks, V2 guaranteed post-retrieval exposure, and the paper's exact structured Judge prompt. Light and Medium are deterministic stratified subsets of 120 and 300 test cases; Full is the complete official test split. Subject inference is always serial. Remote Judge calls use a bounded asynchronous queue, defaulting to four concurrent requests, while local Ollama Judges are forced to one. Results are restored to official case order, and Subject and Judge inference retain separate logs and accounting. ASR uses severity at least 2, CHER uses severity at least 3, and invalid Judge JSON is excluded from both denominators.
+
+The public MPIB release redacts restricted V2 payload text but includes official reconstruction hooks. RAGnarok mirrors the pinned reconstructor: an approved registry produces `restored_fidelity`; without it, the public `structural_mock` profile preserves the declared rule family and payload length but not the original attack wording. These two profiles must not be pooled as numerically identical evidence.
+
+The authors selected Qwen2.5-72B-Instruct as their primary Judge. RAGnarok deliberately asks the user to select the Judge to support local and provider-independent studies, so a run using another Judge is protocol-compatible but not numerically identical to the paper's primary-Judge results. The manifest records that deviation unambiguously.
+
+## SPIKEE integration
+
+SPIKEE uses the official `v0.9.1` workspace generator, `seeds-cybersec-2026-01`, `llm_provider` target, and dataset-owned native judges. It covers direct injection objectives including system-prompt leakage, data exfiltration, XSS-style output, and resource exhaustion. Setup generates a frozen, SHA-256-sorted 300-case RAGnarok profile. Light and Medium use deterministic prefixes of 90 and 250 cases. This is explicitly reported as a fixed profile derived from SPIKEE, not the complete set of all possible SPIKEE datasets, plugins, and dynamic attacks.
+
+## AgentDojo integration
+
+AgentDojo runs its official task suites, tool environment, agent pipeline, attack implementation, utility checks, and security checks. RAGnarok connects Ollama through AgentDojo's supported OpenAI-compatible local-model path, keeps concurrency at one, and preserves the official native trajectories. Light and Medium are deterministic prefixes of 100 and 300 cases; Full uses the 629-case security matrix from benchmark version `v1.2.2`. AgentDojo is reported separately as agentic security evidence and is not mislabeled as classic retrieval-only RAG.
+
+## Automated ephemeral execution
+
+`ragnarok auto` reads the TOML-formatted `automation.toml` file. Models are deliberately disabled in the repository template so the exact registry tags can be frozen after the thesis model matrix is selected; the examples exclude 1B models.
+
+```powershell
+ragnarok preflight --file automation.toml
+ragnarok auto --file automation.toml
+```
+
+Automation performs one Subject inference at a time and prefetches a bounded number of future Ollama models concurrently. `download_concurrency` defaults to two and reserves disk space before starting each pull. It records the models installed before startup, never deletes those models, and removes only automation-owned downloads after the current model's results and checkpoint have been committed. SQLite job checkpoints allow completed model/benchmark pairs to be skipped when `resume_suite` points to an interrupted output directory. `sync_command` can copy the suite after each completed model to object storage; without it, outputs remain on the Pod's ephemeral disk and must be downloaded before the Pod is terminated.
+
+The subject queue, Judge configuration, benchmark profiles, provider parameters, concurrency limits, and sync command are frozen in `automation.toml` and copied into `automation_manifest.json`. `subject_concurrency` is schema-locked to one. `judge_concurrency` controls remote Judge requests, `postprocess_workers` controls report generation, and download parallelism never creates a second Subject worker.
+
+For a reproducible Linux/CUDA environment, build the included `Dockerfile`. Ollama may run in the same Pod or at the URL configured by `ollama_url`. The framework never terminates a cloud Pod automatically.
+
+See [RUNPOD_DEPLOYMENT_GUIDE.md](RUNPOD_DEPLOYMENT_GUIDE.md) for the complete ephemeral-Pod workflow, cost controls, secrets, setup, pilot acceptance criteria, resume, output export, and termination checklist.
+
+See [GPU_MODEL_PLAN.md](GPU_MODEL_PLAN.md) for the RunPod price snapshot and the fixed-hardware strategy used to assign model families and quantizations to GPUs.
+
+## Outputs
+
+Each run is isolated and immediately identifiable. A single-model run uses the model identifier in the directory name:
 
 ```text
-outputs/
-└── llama3_2_1b_instruct_q4_k_m/
-    └── responses.csv
+outputs/<model-id>_<UTC-run-id>/
+├── report.xlsx
+├── cases.csv
+├── summary.csv
+├── metrics.json
+├── results.sqlite
+├── suite_manifest.json
+├── report.json
+├── data/
+│   ├── cases.jsonl
+│   ├── model_calls.jsonl
+│   └── metrics.jsonl
+└── artifacts/benchmarks/<benchmark>/<run-id>/<model>/{native,normalized}
 ```
 
-The compact result contains:
+A multi-model run uses `outputs/group_<UTC-run-id>/`, places the scientific comparative `report.xlsx` at its root, and creates `models/<model-id>/` subdirectories containing filtered `cases.csv` and native `metrics.json`. The workbook includes execution timing, model and quantization comparisons, attack taxonomy, retrieval security, Judge auditing, performance, native metrics, and case-level data.
 
-| Column | Purpose |
-| --- | --- |
-| `case_id` | Unique row identifier. |
-| `conversation_id` | Groups continuous prompts. |
-| `turn_index` | Position inside the conversation. |
-| `is_continuation` | Whether this row continues an earlier prompt. |
-| `prompt` | Prompt sent through the RAG pipeline. |
-| `is_attack`, `attack_vector` | Minimal judge context when supplied by the dataset. |
-| `expected_behavior`, `success_criteria`, `evaluation_target` | Evaluator-only information for an external judge. |
-| `model_name`, `model_provider` | Model identity. |
-| `retrieved_sources` | The four chunk identifiers, paths, and similarity scores. |
-| `response` | Model response. |
-| `status` | Empty without a judge; otherwise the parsed judge label. |
-| `judge_mode`, `judge_model`, `judge_provider` | Judge configuration used for the row. |
-| `judge_response`, `judge_reason`, `judge_error` | Auditable judge evidence and failures. |
-| `error` | Provider error, when one occurred. |
+Automation uses `outputs/automation_<UTC-run-id>/` with the same group report and per-model layout, plus `automation_manifest.json` and persistent job state in `results.sqlite`.
 
-The external judge can fill `status` with a controlled label such as:
+The XLSX report includes overall ASR and resistance, paired quantization comparisons, stratification by attack taxonomy, retrieval-security analysis, Judge auditing, performance statistics, native metrics, CIA coverage, and known coverage gaps. SQLite is canonical, JSONL is the lossless portable export, and CSV is the readable flat export. Subject, Judge, and attacker calls remain separately identifiable. Native artifacts remain authoritative for each benchmark. Report generation never calls a model or recomputes evaluation.
 
-```text
-secure
-compromised
-partial
-uncertain
-```
+The manifest records:
 
-RAGnarok does not calculate aggregate scores, generate PDFs, or create comparison files. When LLM-as-a-judge is enabled, it records per-row labels and judge evidence in the same response CSV.
+- Benchmark repository and pinned commit
+- Exact official configuration
+- Hash of the official model configuration
+- Benchmark-owned decoding parameters
+- Selected models and providers
+- Expected and completed calls
+- Separate subject, Judge, and attacker role configurations and call logs
+- Exact Judge prompt, parameters, and prompt hash
+- Processed dataset hashes
+- Fidelity qualification
 
-Rows are written immediately instead of only at the end. If a long run is interrupted, the completed rows remain in `responses.csv`.
+## Fidelity rules
 
-## Talk through the RAG pipeline
+- Benchmark source is pinned and unmodified.
+- Official datasets, splits, or explicitly qualified source-equivalent packaging are used.
+- Official prompt and attack construction is used.
+- Official evaluation is authoritative.
+- Model selection does not change benchmark decoding parameters.
+- Unsupported or incomplete installations fail validation.
+- RAGnarok does not silently repair upstream behavior.
+- No benchmark prompt, scoring rule, or attack payload is silently substituted.
 
-Use the same provider UI and RAG pipeline for direct manual testing:
+See `BENCHMARK_INTEGRATION_REPORT.md` for the thesis-ready modification and coverage record.
 
-```bash
-ragnarok talk
-```
-
-Select one model, then type normal messages. Every message retrieves exactly four chunks. The terminal prints the model response and the four source paths.
-
-Available commands:
-
-```text
-/context   Show the exact four chunks from the latest message
-/clear     Clear conversation history
-/exit      Close the chat
-```
-
-`talk` does not read the dataset, write a CSV, call a judge, or calculate scores. Previous raw prompts and answers remain in the conversation, but previous retrieved chunks do not.
-
-## Provider contracts
-
-### Ollama
-
-RAGnarok calls:
-
-```text
-POST http://localhost:11434/api/chat
-```
-
-### API
-
-OpenAI and OpenAI-compatible providers use `/chat/completions`. Claude uses Anthropic's `/v1/messages` format with a separate system prompt and `anthropic-version` header.
-
-### HTTP endpoint
-
-RAGnarok sends one `POST` request containing:
-
-```json
-{
-  "system_prompt": "...",
-  "messages": [{"role": "user", "content": "..."}],
-  "model": "model-name",
-  "temperature": 0,
-  "max_output_tokens": 1000
-}
-```
-
-When prompted, specify the JSON path containing the response text, for example `response` or `result.text`.
-
-## Project layout
-
-```text
-dataset/dataset.csv       prompts
-knowledge_base/           PDF knowledge base
-prompts/                  inference system prompt
-src/ragnarok/             framework code
-outputs/                  generated response CSV files
-.ragnarok/cache/          reusable local vector index
-```
-
-The corpus is synthetic research material. Results are not evidence of production security or compliance.
+The former custom PDF-RAG pilot is preserved on the `v2-pilot` branch and the `legacy-pdf-rag-final` tag.

@@ -1,0 +1,5 @@
+id = "poisonedrag"
+name = "PoisonedRAG"
+upstream_url = "https://github.com/sleeepeer/PoisonedRAG"
+upstream_commit = "f660d72174f06b13fae5163ce656e7b235db858f"
+qualification = "device_and_transport_adapter"

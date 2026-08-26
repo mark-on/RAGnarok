@@ -1,34 +1,8 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel
-
-
-OUTPUT_COLUMNS = [
-    "case_id",
-    "conversation_id",
-    "turn_index",
-    "is_continuation",
-    "prompt",
-    "is_attack",
-    "attack_vector",
-    "expected_behavior",
-    "success_criteria",
-    "evaluation_target",
-    "model_name",
-    "model_provider",
-    "retrieved_sources",
-    "response",
-    "status",
-    "judge_mode",
-    "judge_model",
-    "judge_provider",
-    "judge_response",
-    "judge_reason",
-    "judge_error",
-    "error",
-]
+from pydantic import BaseModel, Field
 
 
 class ChatMessage(BaseModel):
@@ -36,43 +10,15 @@ class ChatMessage(BaseModel):
     content: str
 
 
-class ExtractedUnit(BaseModel):
-    document_path: str
-    document_id: str = "unknown"
-    page_number: int | None = None
-    extracted_surface: Literal["body", "metadata"]
-    content: str
-    content_hash: str
-
-
-class Chunk(BaseModel):
-    chunk_id: str
-    document_path: str
-    document_id: str
-    page_number: int | None
-    extracted_surface: Literal["body", "metadata"]
-    content: str
-    content_hash: str
-
-
-class RetrievalHit(BaseModel):
-    rank: int
-    chunk_id: str
-    document_path: str
-    document_id: str
-    page_number: int | None
-    extracted_surface: Literal["body", "metadata"]
-    similarity_score: float
-    content: str
-
-
 class ProviderRequest(BaseModel):
-    system_prompt: str
+    system_prompt: str | None = None
     conversation_messages: list[ChatMessage]
     model: str
-    temperature: float = 0
-    max_output_tokens: int = 1000
-    timeout: float = 120
+    temperature: float = Field(0, ge=0, le=2)
+    max_output_tokens: int = Field(1000, ge=1, le=4096)
+    stop_sequences: list[str] = Field(default_factory=list, max_length=8)
+    response_schema: dict[str, Any] | None = None
+    timeout: float = Field(120, gt=0, le=600)
 
 
 class ProviderResult(BaseModel):
@@ -83,3 +29,4 @@ class ProviderResult(BaseModel):
     output_tokens: int | None = None
     error_type: str = ""
     error_message: str = ""
+    runtime_metadata: dict[str, Any] = Field(default_factory=dict)

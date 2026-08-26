@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 import keyring
 from keyring.errors import KeyringError, PasswordDeleteError
@@ -42,5 +43,8 @@ def resolve_credential(credential_id: str | None, environment_name: str | None =
     if environment_name and os.getenv(environment_name):
         return os.environ[environment_name]
     if credential_id:
+        generic_name = "RAGNAROK_CREDENTIAL_" + re.sub(r"[^A-Za-z0-9]+", "_", credential_id).upper()
+        if os.getenv(generic_name):
+            return os.environ[generic_name]
         return get_stored_credential(credential_id)
     return None

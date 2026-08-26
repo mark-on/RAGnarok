@@ -1,0 +1,6 @@
+[submodule "benchmarks/open_prompt_injection/upstream"]
+	path = benchmarks/open_prompt_injection/upstream
+	url = https://github.com/liu00222/Open-Prompt-Injection.git
+[submodule "benchmarks/poisonedrag/upstream"]
+	path = benchmarks/poisonedrag/upstream
+	url = https://github.com/sleeepeer/PoisonedRAG.git

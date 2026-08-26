@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ragnarok-eval"
-version = "0.1.0"
-description = "Local evaluation framework for the RAGnarok RAG security benchmark"
+version = "0.4.0"
+description = "Provider-independent runner for pinned LLM security benchmarks"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "CC-BY-4.0"}
@@ -16,9 +16,39 @@ dependencies = [
   "pydantic>=2.7",
   "httpx>=0.27",
   "numpy>=1.26",
-  "sentence-transformers>=3.0",
-  "pypdf>=4.0",
   "rich>=13.7",
+  "xlsxwriter>=3.2",
+  "reportlab>=4.2",
+]
+
+[project.optional-dependencies]
+open-prompt-injection = [
+  "accelerate>=0.32",
+  "datasets==2.19.2",
+  "fschat==0.2.36",
+  "psutil>=5.9",
+  "rouge==1.0.1",
+  "sentencepiece>=0.2",
+  "torch>=2.3",
+  "tqdm==4.66.4",
+  "transformers>=4.42",
+]
+poisonedrag = [
+  "beir>=2.0",
+  "sentence-transformers>=3.0",
+  "torch>=2.3",
+  "tqdm>=4.66",
+  "transformers>=4.42",
+]
+mpib = [
+  "huggingface-hub>=0.24",
+]
+agentdojo = [
+  "agentdojo==0.1.35",
+]
+spikee = [
+  "datasets==4.8.4",
+  "spikee[ollama]==0.9.1",
 ]
 
 [project.scripts]

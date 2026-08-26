@@ -1,0 +1,86 @@
+# RAGnarok automation file.
+# Enable only tags that exist in the selected Ollama registry.
+version = 1
+
+[automation]
+prefetch = true
+download_concurrency = 2
+cleanup_downloaded_models = true
+resume = true
+min_free_disk_gb = 10
+ollama_url = "http://localhost:11434"
+output_dir = "outputs"
+# To resume an interrupted suite, uncomment and set its existing directory:
+# resume_suite = "outputs/automation_YYYYMMDDTHHMMSSZ"
+# Optional durable copy after every completed model, for example:
+# sync_command = ["rclone", "copy", "{suite_dir}", "remote:ragnarok-results"]
+
+[runtime]
+retries = 2
+retry_backoff_seconds = 0.25
+subject_concurrency = 1
+judge_concurrency = 4
+postprocess_workers = 0
+
+[[benchmarks]]
+id = "poisonedrag"
+enabled = true
+[benchmarks.options]
+profile = "medium"
+
+[[benchmarks]]
+id = "mpib"
+enabled = true
+[benchmarks.options]
+profile = "medium"
+[benchmarks.judge]
+id = "deepseek-judge"
+adapter = "openai"
+model = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
+credential_id = "deepseek"
+temperature = 0
+max_output_tokens = 1024
+
+[[benchmarks]]
+id = "spikee"
+enabled = true
+[benchmarks.options]
+profile = "medium"
+
+[[benchmarks]]
+id = "agentdojo"
+enabled = true
+[benchmarks.options]
+profile = "medium"
+attack = "tool_knowledge"
+
+# Candidate models intentionally exclude 1B variants. Keep disabled until the
+# exact quantization tags for the chosen Ollama registry have been confirmed.
+[[models]]
+id = "llama-3.2-3b-f16"
+adapter = "ollama"
+model = "llama3.2:3b-instruct-fp16"
+estimated_size_gb = 6.5
+enabled = false
+
+[[models]]
+id = "llama-3.2-3b-q4"
+adapter = "ollama"
+model = "llama3.2:3b-instruct-q4_K_M"
+estimated_size_gb = 2.5
+enabled = false
+
+[[models]]
+id = "qwen3-4b-f16"
+adapter = "ollama"
+model = "qwen3:4b-fp16"
+estimated_size_gb = 8.5
+enabled = false
+
+[[models]]
+id = "qwen3-4b-q4"
+adapter = "ollama"
+model = "qwen3:4b-q4_K_M"
+estimated_size_gb = 3.0
+enabled = false

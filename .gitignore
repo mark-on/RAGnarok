@@ -1,5 +1,6 @@
 .venv/
 .ragnarok/
+.cache/
 archive/
 configs/
 __pycache__/
@@ -7,6 +8,8 @@ __pycache__/
 .pytest_cache/
 outputs/
 output/
+reports/
+logs/
 .env
 .env.*
 *.log
@@ -25,7 +28,44 @@ dist/
 tmp/
 .idea/
 .vscode/
+.agents/
+.DS_Store
+Thumbs.db
 .~lock.*#
 RAGnarok.bat
 dataset/v1_dataset.csv
 knowledge_base_v1/
+
+# Runtime-generated benchmark workspaces, caches, and results
+benchmarks/*/workspace/
+benchmarks/*/cache/
+benchmarks/*/results/
+benchmarks/mpib/upstream/
+
+# Restricted user-provided benchmark material
+benchmarks/mpib/payload_registry.json
+
+# Generated reports and tabular exports
+report*.pdf
+*.xlsx
+*.xls
+
+# Downloaded model weights and dependency archives
+models/
+*.gguf
+*.safetensors
+*.ckpt
+*.pth
+*.pt
+*.onnx
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.zst
+
+# Internal analysis documents, not end-user documentation
+*_REPORT.md
+FRAMEWORK_ARCHITECTURE.md
+GPU_MODEL_PLAN.md
+POISONEDRAG_UNIVERSAL_ADAPTER_NOTES.md
