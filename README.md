@@ -306,4 +306,6 @@ Use a paid API or real GPU only for an explicitly authorized end-to-end pilot.
 
 ## License
 
-RAGnarok is released under CC BY 4.0. Third-party benchmarks and datasets retain their own licenses, access requirements, and attribution rules.
+RAGnarok's original code and documentation are released under the [MIT License](LICENSE). You may use, copy, modify, merge, publish, distribute, sublicense, and sell the software, provided that the copyright and permission notice are preserved.
+
+Third-party benchmarks, datasets, model weights, packages, and Git submodules are not relicensed by this project. They retain their own licenses, access requirements, usage restrictions, and attribution rules.
