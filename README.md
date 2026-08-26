@@ -1,188 +1,309 @@
-# RAGnarok
+<p align="center">
+  <img src="assets/ragnarok-logo.png" alt="RAGnarok logo" width="720">
+</p>
 
-RAGnarok is a modular execution framework for pinned third-party RAG security benchmarks. It selects and connects subject, Judge, and attacker models, supervises execution, and preserves provenance. Benchmark-owned prompts, attack logic, datasets, and scoring rules remain authoritative; hardware and provider compatibility is supplied by explicit adapters.
+<h1 align="center">RAGnarok</h1>
 
-The supported suite is:
+<p align="center">
+  A reproducible, provider-independent framework for evaluating multiple LLM and RAG security datasets in one workflow.
+</p>
 
-- [PoisonedRAG](https://github.com/sleeepeer/PoisonedRAG), pinned at `f660d72174f06b13fae5163ce656e7b235db858f`
-- [MPIB](https://github.com/jhlee0619/mpib-eval), toolkit pinned at `ad615aaec605e9cc8028fb073cdf428b08fca9f7`, canonical dataset version `v1.1`
-- [SPIKEE](https://github.com/ReversecLabs/spikee), pinned to release `v0.9.1` and its `seeds-cybersec-2026-01` dataset
-- [AgentDojo](https://github.com/ethz-spylab/agentdojo), pinned to package release `v0.1.35` and benchmark version `v1.2.2`
+## What RAGnarok is
 
-## Install
+RAGnarok runs multiple security benchmarks against one or more language models and converts their native results into a common, auditable format.
 
-Python 3.11 or newer is required for the RAGnarok core. Python 3.12 is recommended for compatibility with the pinned benchmark's older dependency stack.
+It is designed for experiments where the same model family must be compared across sizes, providers, or quantization levels without manually running every dataset and rebuilding every report. A single evaluation can cover classic RAG knowledge poisoning, prompt injection, data exfiltration, direct attacks, and agentic tool-use attacks.
+
+RAGnarok does not replace the original benchmarks. Each integration preserves the benchmark-owned dataset, prompt construction, attack logic, evaluator, and native artifacts. The framework adds a shared execution layer, model-provider adapters, resume support, normalized results, and comparative reporting.
+
+## Why use it
+
+- Run several security datasets through one CLI.
+- Evaluate one model or a group of model quantizations.
+- Use local models, remote Ollama GPUs, or API providers.
+- Keep subject inference serial to fit memory-constrained GPUs.
+- Parallelize safe auxiliary work such as remote Judge calls and setup preparation.
+- Resume interrupted evaluations without repeating completed work.
+- Preserve native benchmark evidence alongside normalized results.
+- Generate per-model, per-benchmark, taxonomy, performance, and comparative reports.
+- Add new datasets through a documented adapter contract that an AI coding agent can follow.
+
+## Supported security benchmarks
+
+| Benchmark | Security area | Evaluation sizes | Evaluation method |
+| --- | --- | --- | --- |
+| [PoisonedRAG](https://github.com/sleeepeer/PoisonedRAG) | Retrieved-knowledge poisoning across NQ, HotpotQA, and MS MARCO | 90 / 150 / 300 | Official attack-success evaluation |
+| [MPIB](https://github.com/jhlee0619/mpib-eval) | Direct and indirect prompt injection in retrieval contexts | 120 / 300 / complete test split | Official structured LLM Judge prompt |
+| [SPIKEE](https://github.com/ReversecLabs/spikee) | Prompt leakage, exfiltration, XSS-style output, and resource abuse | 90 / 250 / 300 | Native dataset evaluation |
+| [AgentDojo](https://github.com/ethz-spylab/agentdojo) | Agentic indirect injection, unauthorized actions, and tool misuse | 100 / 300 / 629 | Official utility and security checks |
+
+Reduced profiles are deterministic subsets. Full profiles preserve the complete declared RAGnarok evaluation matrix for each integration. The selected profile, upstream revision, model configuration, Judge configuration, and relevant hashes are frozen in the run manifest.
+
+## How it works
+
+```text
+Select benchmarks and evaluation size
+              |
+Select subject models and optional Judge
+              |
+Validate providers, dependencies, and prepared datasets
+              |
+Run every selected benchmark for model 1
+              |
+Run every selected benchmark for model 2, and so on
+              |
+Preserve native results and normalize comparable fields
+              |
+Write SQLite, JSONL, CSV, XLSX, and optional PDF reports
+```
+
+The execution order is model-first. One model completes all selected benchmarks before the next model is loaded. Subject inference is always limited to one worker; this avoids loading or generating with multiple large models at the same time.
+
+## Installation
+
+Python 3.11 or newer is required. Python 3.12 is recommended for compatibility with the pinned third-party dependencies.
+
+### Windows
 
 ```powershell
-git clone --recurse-submodules https://github.com/mark-on/RAGnarok
+git clone --recurse-submodules https://github.com/mark-on/RAGnarok.git
 cd RAGnarok
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
-```
-
-For an existing checkout:
-
-```powershell
 ragnarok setup
 ```
 
-`ragnarok setup` installs every registered dependency without reinstalling the active `ragnarok.exe`, then prepares independent benchmarks concurrently. The automatic worker count is capped at four and can be overridden with `ragnarok setup --workers N`. Each benchmark writes a separate log, failures are collected instead of exposing third-party tracebacks, and `.ragnarok/setup_manifest.json` records the readiness and preparation metadata of every benchmark. Setup is idempotent: verified caches are reused.
+### Linux
 
-MPIB is gated by its authors. Accept the dataset terms on Hugging Face before setup. The command requests a Hugging Face token before installation, keeps it available throughout preparation, stores it in the operating-system credential store, and never writes it to a manifest. If `benchmarks/mpib/payload_registry.json` contains the approved restricted registry, V2 payloads are restored exactly. Otherwise setup applies the pinned official toolkit's public `structural_mock` reconstruction. The selected mode and reconstruction counts are frozen in setup, run, and case metadata; structural mocks are never labeled as exact restricted payloads.
+```bash
+git clone --recurse-submodules https://github.com/mark-on/RAGnarok.git
+cd RAGnarok
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+ragnarok setup
+```
 
-After setup, `ragnarok run` does not download datasets or rebuild indexes. Missing, stale, unresolved, or hash-invalid assets fail closed with a setup instruction.
+`ragnarok setup` installs registered optional dependencies and prepares benchmark assets in parallel. Prepared caches are verified and reused on later setup runs. Dataset downloads and retrieval preparation happen during setup, not during normal evaluation.
 
-## Validate benchmarks
+MPIB is access-gated by its authors. Setup may request a Hugging Face token after the user accepts the dataset terms. Credentials are stored through the operating-system credential store and are not written to result manifests.
+
+## Quick start
+
+Check benchmark readiness:
 
 ```powershell
 ragnarok benchmarks
 ```
 
-The command verifies the pinned upstream commit and required Python imports. A mismatched commit or missing dependency prevents a qualified run.
-
-## Run
+Start an interactive evaluation:
 
 ```powershell
 ragnarok run
 ```
 
-The interactive flow is:
+The wizard asks for:
 
-```text
-One or more benchmark selections
-→ One shared Light, Medium, or Full suite size
-→ Model selection
-→ Explicit Judge selection for MPIB
-→ Execution summary
-→ Official benchmark execution
-→ Native evaluation
-→ Universal result normalization
-→ Scientific XLSX report with model, quantization, taxonomy, retrieval, Judge, and performance analysis
+1. One or more benchmarks.
+2. A shared Light, Medium, or Full evaluation size.
+3. One or more subject models.
+4. A Judge model when the selected benchmark requires one.
+5. A final confirmation before inference begins.
+
+Use plain output for servers, redirected logs, or terminals without full interactive rendering:
+
+```powershell
+ragnarok run --plain
 ```
 
-Model connections include:
+When an incomplete suite is detected, RAGnarok offers to resume the frozen session. Completed model/benchmark jobs are skipped.
 
-- Ollama
-- OpenAI
-- Anthropic
-- OpenRouter or another OpenAI-compatible API
-- Custom HTTP endpoints
+## Model providers
 
-Credentials are entered through hidden fields and stored using the operating system credential store. Judge and attacker configurations may be saved under a user-provided profile name. A required role is still selected explicitly on every run; a saved profile is never applied silently.
+RAGnarok supports:
 
-Headless servers can provide the same credentials as environment variables named `RAGNAROK_CREDENTIAL_<ID>`, where punctuation in the configured credential ID becomes `_` and the value is uppercased. For example, `credential_id = "deepseek"` resolves from `RAGNAROK_CREDENTIAL_DEEPSEEK`. Secrets are never written to reports or manifests.
+- Ollama, running locally or through an SSH tunnel to a remote GPU;
+- OpenAI-compatible APIs, including OpenAI, DeepSeek, and OpenRouter;
+- Anthropic;
+- explicitly configured custom HTTP endpoints.
 
-Local Ollama runs use one inference worker, a persistent HTTP connection, an explicit model warm-up, a keep-alive window during the run, buffered request logging, and automatic model unloading when the model evaluation finishes. The request log records wall-clock and Ollama runtime durations. Ollama independently selects CPU, GPU, or hybrid execution; this generator placement is separate from the CPU/CUDA/ROCm device selected for PoisonedRAG's Contriever preparation.
+For a remote Ollama server forwarded through SSH, configure RAGnarok as normal Ollama at:
 
-## PDF reports
+```text
+http://127.0.0.1:11434
+```
+
+The framework sees a local endpoint while inference is performed by the remote GPU. Datasets, benchmark code, results, and reports can remain on the local computer; only model inputs and outputs cross the tunnel.
+
+Headless credentials can be supplied through variables named `RAGNAROK_CREDENTIAL_<ID>`. For example, credential ID `deepseek` resolves from `RAGNAROK_CREDENTIAL_DEEPSEEK`.
+
+## Results
+
+Every suite is isolated under `outputs/`:
+
+```text
+outputs/<model-or-group>_<UTC-run-id>/
+  suite_manifest.json
+  results.sqlite
+  report.xlsx
+  report.json
+  cases.csv
+  summary.csv
+  metrics.json
+  data/
+    cases.jsonl
+    model_calls.jsonl
+    metrics.jsonl
+  artifacts/
+    benchmarks/
+      <benchmark>/<native-run>/...
+```
+
+SQLite is the canonical combined store. JSONL is the lossless portable export. CSV, XLSX, and PDF files are derived views. Native benchmark files remain available for auditing individual cases.
+
+The reports include, where supported by the selected datasets:
+
+- Attack Success Rate and resistance;
+- legitimate-task utility;
+- Security-Utility Balance Score;
+- attack objectives and techniques;
+- direct, indirect RAG, and agentic security tracks;
+- retrieval-security analysis;
+- subject and Judge performance;
+- tokens per second and execution duration;
+- model and quantization comparisons;
+- source-run provenance and known coverage gaps.
+
+## Comparative PDF reports
+
+Generate a PDF from stored results without repeating inference or Judge calls:
 
 ```powershell
 ragnarok report
 ```
 
-The command lists result runs containing canonical normalized cases. Select one run for a single-run PDF or multiple runs for a comparative PDF. Report generation never repeats inference or Judge calls. The generated folder under `outputs/reports/` contains `report.pdf`, `combined_results.csv`, and `report_manifest.json` with the exact selected source runs.
-
-For headless execution, repeat `--run` with result directory names:
+Select one run for a single-model report or multiple runs for a quantization comparison. For non-interactive use:
 
 ```powershell
-ragnarok report --run qwen_q8_run --run qwen_q4_run
+ragnarok report --run RUN_Q8 --run RUN_Q4 --output outputs/reports/qwen-comparison
 ```
 
-## PoisonedRAG integration
+The report bundle contains `report.pdf`, `combined_results.csv`, and `report_manifest.json`.
 
-PoisonedRAG always covers NQ, HotpotQA, and MS MARCO. Light uses 90 cases, Medium uses 150, and Full uses the complete 300-case RAGnarok replay profile. Reduced profiles are deterministic prefixes of the frozen official case sequence and are labeled as reduced subsets. The fixed settings remain `LM_targeted`, five adversarial passages, dot-product scoring, seed 12, temperature 0.1, and 150 output tokens.
+## Automated execution
 
-The adapter leaves the pinned upstream source unchanged. During `ragnarok setup`, it executes the same Contriever computation on NVIDIA/CUDA, AMD/ROCm, or CPU and selects the best available backend automatically; it never substitutes another retriever. Only the five clean documents referenced by each released ranking are retained while the BEIR corpus is scanned as JSONL, preventing whole-corpus RAM loading without changing IDs, texts, scores, or ranking logic. The verified top-5 contexts are then reused unchanged by every model and quantization during `ragnarok run`. The final LLM client is replaced by the shared provider transport.
-
-This is a controlled, offline replay of a fixed RAG evaluation pipeline, not a production online vector database. Hardware backends may produce small floating-point differences, so the integration is faithful to the official algorithm and artifacts but is not claimed to be bitwise-identical across CPU, CUDA, and ROCm.
-
-## MPIB integration
-
-MPIB uses the official blind prompt assembly, fixed test split, V1 direct attacks, V2 guaranteed post-retrieval exposure, and the paper's exact structured Judge prompt. Light and Medium are deterministic stratified subsets of 120 and 300 test cases; Full is the complete official test split. Subject inference is always serial. Remote Judge calls use a bounded asynchronous queue, defaulting to four concurrent requests, while local Ollama Judges are forced to one. Results are restored to official case order, and Subject and Judge inference retain separate logs and accounting. ASR uses severity at least 2, CHER uses severity at least 3, and invalid Judge JSON is excluded from both denominators.
-
-The public MPIB release redacts restricted V2 payload text but includes official reconstruction hooks. RAGnarok mirrors the pinned reconstructor: an approved registry produces `restored_fidelity`; without it, the public `structural_mock` profile preserves the declared rule family and payload length but not the original attack wording. These two profiles must not be pooled as numerically identical evidence.
-
-The authors selected Qwen2.5-72B-Instruct as their primary Judge. RAGnarok deliberately asks the user to select the Judge to support local and provider-independent studies, so a run using another Judge is protocol-compatible but not numerically identical to the paper's primary-Judge results. The manifest records that deviation unambiguously.
-
-## SPIKEE integration
-
-SPIKEE uses the official `v0.9.1` workspace generator, `seeds-cybersec-2026-01`, `llm_provider` target, and dataset-owned native judges. It covers direct injection objectives including system-prompt leakage, data exfiltration, XSS-style output, and resource exhaustion. Setup generates a frozen, SHA-256-sorted 300-case RAGnarok profile. Light and Medium use deterministic prefixes of 90 and 250 cases. This is explicitly reported as a fixed profile derived from SPIKEE, not the complete set of all possible SPIKEE datasets, plugins, and dynamic attacks.
-
-## AgentDojo integration
-
-AgentDojo runs its official task suites, tool environment, agent pipeline, attack implementation, utility checks, and security checks. RAGnarok connects Ollama through AgentDojo's supported OpenAI-compatible local-model path, keeps concurrency at one, and preserves the official native trajectories. Light and Medium are deterministic prefixes of 100 and 300 cases; Full uses the 629-case security matrix from benchmark version `v1.2.2`. AgentDojo is reported separately as agentic security evidence and is not mislabeled as classic retrieval-only RAG.
-
-## Automated ephemeral execution
-
-`ragnarok auto` reads the TOML-formatted `automation.toml` file. Models are deliberately disabled in the repository template so the exact registry tags can be frozen after the thesis model matrix is selected; the examples exclude 1B models.
+`ragnarok auto` reads a TOML plan and processes a model queue while keeping subject concurrency at one.
 
 ```powershell
 ragnarok preflight --file automation.toml
+ragnarok auto --file automation.toml --dry-run
 ragnarok auto --file automation.toml
 ```
 
-Automation performs one Subject inference at a time and prefetches a bounded number of future Ollama models concurrently. `download_concurrency` defaults to two and reserves disk space before starting each pull. It records the models installed before startup, never deletes those models, and removes only automation-owned downloads after the current model's results and checkpoint have been committed. SQLite job checkpoints allow completed model/benchmark pairs to be skipped when `resume_suite` points to an interrupted output directory. `sync_command` can copy the suite after each completed model to object storage; without it, outputs remain on the Pod's ephemeral disk and must be downloaded before the Pod is terminated.
+The repository template keeps example models disabled until exact Ollama tags are verified. Automation can prefetch future models, reserve disk space, remove only models it downloaded itself, checkpoint completed jobs, and optionally synchronize results to durable storage.
 
-The subject queue, Judge configuration, benchmark profiles, provider parameters, concurrency limits, and sync command are frozen in `automation.toml` and copied into `automation_manifest.json`. `subject_concurrency` is schema-locked to one. `judge_concurrency` controls remote Judge requests, `postprocess_workers` controls report generation, and download parallelism never creates a second Subject worker.
+## Adding a new dataset with AI
 
-For a reproducible Linux/CUDA environment, build the included `Dockerfile`. Ollama may run in the same Pod or at the URL configured by `ollama_url`. The framework never terminates a cloud Pod automatically.
+RAGnarok includes [AGENTS.md](AGENTS.md), a machine-readable engineering guide for coding agents. It explains the architecture, invariants, adapter contract, output structure, test matrix, security rules, and acceptance checklist.
 
-See [RUNPOD_DEPLOYMENT_GUIDE.md](RUNPOD_DEPLOYMENT_GUIDE.md) for the complete ephemeral-Pod workflow, cost controls, secrets, setup, pilot acceptance criteria, resume, output export, and termination checklist.
+This makes AI-assisted integration practical: a developer can give an AI coding agent the new dataset, paper, or official repository and ask it to implement the adapter using the existing framework conventions.
 
-See [GPU_MODEL_PLAN.md](GPU_MODEL_PLAN.md) for the RunPod price snapshot and the fixed-hardware strategy used to assign model families and quantizations to GPUs.
-
-## Outputs
-
-Each run is isolated and immediately identifiable. A single-model run uses the model identifier in the directory name:
+An effective request is:
 
 ```text
-outputs/<model-id>_<UTC-run-id>/
-├── report.xlsx
-├── cases.csv
-├── summary.csv
-├── metrics.json
-├── results.sqlite
-├── suite_manifest.json
-├── report.json
-├── data/
-│   ├── cases.jsonl
-│   ├── model_calls.jsonl
-│   └── metrics.jsonl
-└── artifacts/benchmarks/<benchmark>/<run-id>/<model>/{native,normalized}
+Read AGENTS.md completely. Analyze the official <DATASET OR BENCHMARK> repository,
+paper, license, prompts, splits, and evaluator. Propose an integration plan that
+preserves the native protocol. Then implement a pinned BenchmarkAdapter, setup
+validation, UniversalCase normalization, native artifacts, resume behavior, and
+offline tests. Do not replace the official evaluator or silently modify payloads.
+Run the focused tests and the complete test suite before handing off the change.
 ```
 
-A multi-model run uses `outputs/group_<UTC-run-id>/`, places the scientific comparative `report.xlsx` at its root, and creates `models/<model-id>/` subdirectories containing filtered `cases.csv` and native `metrics.json`. The workbook includes execution timing, model and quantization comparisons, attack taxonomy, retrieval security, Judge auditing, performance, native metrics, and case-level data.
+### What the AI can automate
 
-Automation uses `outputs/automation_<UTC-run-id>/` with the same group report and per-model layout, plus `automation_manifest.json` and persistent job state in `results.sqlite`.
+An AI coding agent can:
 
-The XLSX report includes overall ASR and resistance, paired quantization comparisons, stratification by attack taxonomy, retrieval-security analysis, Judge auditing, performance statistics, native metrics, CIA coverage, and known coverage gaps. SQLite is canonical, JSONL is the lossless portable export, and CSV is the readable flat export. Subject, Judge, and attacker calls remain separately identifiable. Native artifacts remain authoritative for each benchmark. Report generation never calls a model or recomputes evaluation.
+- inspect the upstream dataset schema and evaluator;
+- map setup and runtime dependencies;
+- create a new `BenchmarkAdapter`;
+- add deterministic Light, Medium, and Full profiles;
+- connect subject, Judge, or attacker roles to existing providers;
+- convert native cases into `UniversalCase` records;
+- preserve native metrics and artifacts;
+- add resume and failure handling;
+- build unit and integration tests;
+- extend taxonomy and comparative reports;
+- update documentation and dependency metadata.
 
-The manifest records:
+### What still requires human validation
 
-- Benchmark repository and pinned commit
-- Exact official configuration
-- Hash of the official model configuration
-- Benchmark-owned decoding parameters
-- Selected models and providers
-- Expected and completed calls
-- Separate subject, Judge, and attacker role configurations and call logs
-- Exact Judge prompt, parameters, and prompt hash
-- Processed dataset hashes
-- Fidelity qualification
+AI assistance does not make an integration automatically equivalent to the original benchmark. A researcher or maintainer must verify:
 
-## Fidelity rules
+- dataset and model licenses;
+- access restrictions and redistribution terms;
+- the exact upstream revision;
+- prompts, splits, payloads, decoding parameters, and scoring rules;
+- whether a Judge substitution changes numerical comparability;
+- whether hardware or provider adapters alter retrieval or generation;
+- the scientific wording used to describe fidelity and limitations.
 
-- Benchmark source is pinned and unmodified.
-- Official datasets, splits, or explicitly qualified source-equivalent packaging are used.
-- Official prompt and attack construction is used.
-- Official evaluation is authoritative.
-- Model selection does not change benchmark decoding parameters.
-- Unsupported or incomplete installations fail validation.
-- RAGnarok does not silently repair upstream behavior.
-- No benchmark prompt, scoring rule, or attack payload is silently substituted.
+The adapter should be added to `src/ragnarok/benchmarks/registry.py` only after these checks and the complete test suite pass.
 
-See `BENCHMARK_INTEGRATION_REPORT.md` for the thesis-ready modification and coverage record.
+## Manual adapter checklist
 
-The former custom PDF-RAG pilot is preserved on the `v2-pilot` branch and the `legacy-pdf-rag-final` tag.
+To integrate a benchmark without an AI agent:
+
+1. Implement `BenchmarkAdapter` from `src/ragnarok/core/benchmark.py`.
+2. Pin the official source release or commit.
+3. Define and validate evaluation profiles.
+4. Add the dependency extra to `pyproject.toml`.
+5. Prepare all runtime assets during `ragnarok setup`.
+6. Write native outputs and `normalized/cases.jsonl`.
+7. Preserve official metrics in `native/metrics.json` and `official_evaluation`.
+8. Add the adapter to the registry.
+9. Add deterministic tests for prompts, subsets, evaluation, errors, and resume.
+10. Run an authorized small real-model pilot before a full evaluation.
+
+## Development and testing
+
+Run the complete offline suite:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+Portable form:
+
+```bash
+python -m pytest -q
+```
+
+The tests do not require paid APIs, live Ollama, or model downloads. They cover setup, providers, benchmark fidelity, Judge queues, interruption, resume, outputs, ETA, UI, reports, and PDF generation.
+
+Before submitting a change:
+
+```powershell
+git diff --check
+ragnarok --help
+python -m pytest -q
+```
+
+Use a paid API or real GPU only for an explicitly authorized end-to-end pilot.
+
+## Reproducibility and safety
+
+- Registered benchmark sources and releases are pinned.
+- Missing or stale assets fail closed with a setup instruction.
+- Subject, Judge, and attacker calls remain separately identifiable.
+- API keys and restricted MPIB payload registries are excluded from Git and reports.
+- The framework does not silently repair or replace upstream behavior.
+- Reports never call a model or recompute native evaluation.
+- A lower ASR is not interpreted as better security when utility collapses.
+- Single-run differences are reported descriptively and are not presented as causal proof.
+
+## License
+
+RAGnarok is released under CC BY 4.0. Third-party benchmarks and datasets retain their own licenses, access requirements, and attribution rules.
