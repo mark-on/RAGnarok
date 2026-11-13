@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "description": "SHA-256 provenance for the canonical local artifacts used to produce the public aggregate evaluation files.",
+  "raw_cases_published": false,
+  "runs": {
+    "group_20260824T095145Z": {
+      "status": "complete",
+      "models": [
+        "llama3_2_3b_instruct_fp16",
+        "llama3_2_3b_instruct_q8_0",
+        "llama3_2_3b_instruct_q4_k_m",
+        "llama3_2_3b_instruct_q2_k"
+      ],
+      "results_sqlite_sha256": "a2b8286103df38c88f979ed7d5ccf955b98827e98935c3c011682af3c1ea71a4",
+      "summary_csv_sha256": "f029aaeb9c524bff364e49692a3e8edf20afca4b350abc32b4f83d3c8d13b812",
+      "report_json_sha256": "fefba26ede5e10f84b889b986ef4c2b7c53641cc867ccb96b3f2e304282efc75",
+      "suite_manifest_sha256": "c7076342b2b07533c156303c120e0f76b04c5a9af776eb6ed8a29f71933ecc73",
+      "model_metrics_sha256": {
+        "llama3_2_3b_instruct_fp16": "2566d9e4c72cdb281e81f0fd715cb8daeef379773d32c52be08be30b5efa4829",
+        "llama3_2_3b_instruct_q8_0": "8d42d66eeac2cd1c0093d8ffdbdbd161984d5be8bec7bc38ceb4a1764f9fe0ab",
+        "llama3_2_3b_instruct_q4_k_m": "f9f01b9b439acb85f725533db47d4f412828bd5946223882f230f2169d96dc42",
+        "llama3_2_3b_instruct_q2_k": "170c41e3f9252b6d2e8f96c08c1d1c0dd96ed69512d7134c937ff151ebaf0fa2"
+      }
+    },
+    "qwen2_5_7b_instruct_fp16_20260825T183701Z": {
+      "status": "complete",
+      "model": "qwen2_5_7b_instruct_fp16",
+      "results_sqlite_sha256": "56d90e3a1b8e8419986e6efa848d8022d09f131fc89c0aea761c7e2fddfc624e",
+      "summary_csv_sha256": "f6ed3591c2bb350de21281f3a34ce3bb10149b177cc67fd80625b4b5a4799083",
+      "metrics_json_sha256": "fa27ccda7d8d26b62ac3c6e0e237cee31bc085c28ee55da9da31411fbba2609c",
+      "report_json_sha256": "c3eb035000f2840805e3d3e873d85a1ecc9d607f26b4fb89b2ed5237a8459e05",
+      "suite_manifest_sha256": "0e0b1c2edeb0c2a47b25d917e366c6fe3801a6bd4502699321405a5064f01c58"
+    },
+    "qwen2_5_7b_instruct_q8_0_20260825T155230Z": {
+      "status": "complete",
+      "model": "qwen2_5_7b_instruct_q8_0",
+      "results_sqlite_sha256": "e9cd081fabefb7d454ed94439c487a9bce30c3e5d13066b0697f21c3bfc038ee",
+      "summary_csv_sha256": "e327350afbbb4bfe18c41d9a38bb9816bc14eac112762a6db85f2a51ea0ee77c",
+      "metrics_json_sha256": "24b74acbf499b5f16d61dc7c9caf8f161bc2473ccb2ea362d9c8bad5d16b4d73",
+      "report_json_sha256": "5d4cd56fd199021019c3e8dbea12d26d91b5d1679bc81229e3ce671ae9d1d802",
+      "suite_manifest_sha256": "8b5b5335e21e127ad1d5776ec5320f14392cd9f4c3263edace5b01c791c340f4"
+    },
+    "qwen2_5_7b_instruct_q4_k_m_20260825T131825Z": {
+      "status": "complete",
+      "model": "qwen2_5_7b_instruct_q4_k_m",
+      "results_sqlite_sha256": "41a9dc0fb26b1802656665bfed4568e3295a8eb8e19904c5ff0d085767c76034",
+      "summary_csv_sha256": "4a684853743006943fcd523b1dc31c7f7168b07a0824c9739880e425232da99d",
+      "metrics_json_sha256": "454f78740a0c5e23412222a912dc326832606a37e8adbc95c636cb898752d8c3",
+      "report_json_sha256": "ac53c21610c75312da0f86fdc486bd1589d7bc41c9f4766ef5646f8ef67a0d10",
+      "suite_manifest_sha256": "d28bc0b50acf9db6ba6968e17c8dd8a0bd9f9ea200b5cf9a0023e75a4f361ddd"
+    },
+    "qwen2_5_7b_instruct_q2_k_20260825T094658Z": {
+      "status": "complete",
+      "model": "qwen2_5_7b_instruct_q2_k",
+      "results_sqlite_sha256": "620e7f45a5c98ec7da5d8c998d8bb63b94d92571260ecc03206822378af23131",
+      "summary_csv_sha256": "aad7269247a53d83a663a8c2879cfa5462cac0cff6ff3d0acf4e55d4b4421334",
+      "metrics_json_sha256": "23ee986dec685107e2a707f2bf2ea91a4fb6cead65768a2865146c5062eb2017",
+      "report_json_sha256": "198db944b0b36e64916b1b0caa1a357628d881b77f4e76027410fbf856e36c78",
+      "suite_manifest_sha256": "d1691c7a764db7be8350915b3c5cb617a7213442b0d2381856aa005d91063286"
+    }
+  }
+}

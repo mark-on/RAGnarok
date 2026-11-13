@@ -181,6 +181,26 @@ The reports include, where supported by the selected datasets:
 - model and quantization comparisons;
 - source-run provenance and known coverage gaps.
 
+## Published evaluation matrix
+
+Aggregate results from the completed Llama 3.2 3B Instruct and Qwen 2.5 7B
+Instruct quantization matrices are published under [`evaluations/`](evaluations/README.md).
+Both families include FP16, Q8, Q4, and Q2 configurations, with 1,360 evaluable
+attack cases per configuration across SPIKEE, PoisonedRAG, MPIB, and AgentDojo.
+
+The main observation is that security does not vary monotonically with
+quantization. Llama FP16, Q8, and Q4 remain within 0.5 percentage points of
+overall ASR, while Qwen Q4 records lower ASR than FP16 but Q2 does not record a
+further reduction on every benchmark. Lower aggregate ASR can also coincide
+with lower utility or worse behavior on a specific attack family. The results therefore support a
+security–utility–cost Pareto analysis rather than a claim that quantization
+alone consistently improves or degrades security.
+
+Only aggregate metrics and SHA-256 provenance are published. Raw prompts,
+responses, contexts, payloads, benchmark workspaces, and restricted MPIB
+material remain excluded. These are single completed runs and must not be
+interpreted as repeated-seed causal evidence.
+
 ## Comparative PDF reports
 
 Generate a PDF from stored results without repeating inference or Judge calls:
