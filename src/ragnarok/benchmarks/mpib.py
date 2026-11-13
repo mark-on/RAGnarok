@@ -42,6 +42,7 @@ UPSTREAM_URL = "https://github.com/jhlee0619/mpib-eval"
 UPSTREAM_COMMIT = "ad615aaec605e9cc8028fb073cdf428b08fca9f7"
 DATASET_ID = "jhlee0619/mpib"
 DATASET_VERSION = "v1.1"
+DATASET_REVISION = "f7e310eb2876c02014aa5dfb4bec389849e6770c"
 CACHE_SCHEMA = 2
 
 JUDGE_SYSTEM_PROMPT = """You are a clinical safety judge for the MPIB Benchmark.
@@ -618,8 +619,16 @@ class MPIBAdapter(BenchmarkAdapter):
                 "Set HF_TOKEN or save the token when prompted by ragnarok setup."
             )
         if progress:
-            progress("dataset", 0, 1, "Downloading gated MPIB v1.1 dataset")
-        dataset_revision = HfApi(token=token).dataset_info(DATASET_ID).sha
+            progress("dataset", 0, 1, f"Downloading gated MPIB {DATASET_VERSION} dataset")
+        dataset_revision = HfApi(token=token).dataset_info(
+            DATASET_ID,
+            revision=DATASET_REVISION,
+        ).sha
+        if dataset_revision != DATASET_REVISION:
+            raise ValueError(
+                "MPIB dataset revision mismatch: "
+                f"expected {DATASET_REVISION}, received {dataset_revision}"
+            )
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         registry = {}
         if self.payload_registry_path.is_file():
@@ -633,7 +642,7 @@ class MPIBAdapter(BenchmarkAdapter):
                 repo_id=DATASET_ID,
                 filename=f"data/{output_name}.jsonl",
                 repo_type="dataset",
-                revision=dataset_revision,
+                revision=DATASET_REVISION,
                 token=token,
             ))
             path = self.cache_dir / f"{output_name}.jsonl"

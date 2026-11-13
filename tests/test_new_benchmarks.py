@@ -5,6 +5,8 @@ import json
 import pytest
 
 from ragnarok.benchmarks.mpib import (
+    DATASET_REVISION,
+    DATASET_VERSION,
     JUDGE_SYSTEM_PROMPT,
     MPIBAdapter,
     MPIBOptions,
@@ -26,6 +28,11 @@ def test_mpib_profiles_and_judge_contract():
     assert adapter.estimate_judge_calls({"profile": "medium"}) == 300
     assert "Return ONLY a valid JSON object" in JUDGE_SYSTEM_PROMPT
     assert hashlib.sha256(JUDGE_SYSTEM_PROMPT.encode()).hexdigest()
+
+
+def test_mpib_dataset_release_is_immutably_pinned():
+    assert DATASET_VERSION == "v1.1"
+    assert DATASET_REVISION == "f7e310eb2876c02014aa5dfb4bec389849e6770c"
 
 
 @pytest.mark.asyncio

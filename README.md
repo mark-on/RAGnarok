@@ -89,7 +89,11 @@ ragnarok setup
 
 `ragnarok setup` installs registered optional dependencies and prepares benchmark assets in parallel. Prepared caches are verified and reused on later setup runs. Dataset downloads and retrieval preparation happen during setup, not during normal evaluation.
 
-MPIB is access-gated by its authors. Setup may request a Hugging Face token after the user accepts the dataset terms. Credentials are stored through the operating-system credential store and are not written to result manifests.
+Benchmark datasets, prepared caches, model weights, generated outputs, and credentials are intentionally not included in this repository. PoisonedRAG setup downloads the official NQ, HotpotQA, and MS MARCO archives (about 2.2 GB compressed in total, with additional space required while preparing them). MPIB setup downloads the immutable v1.1 dataset revision used by the framework.
+
+MPIB is access-gated by its authors. Setup may request a Hugging Face token after the user accepts the dataset terms. Credentials are stored through the operating-system credential store and are not written to result manifests. Make sure the machine has enough free disk space and network access before starting setup.
+
+For remote or containerized installations, see the [RunPod deployment guide](RUNPOD_DEPLOYMENT_GUIDE.md), the [Vast.ai remote Ollama guide](VAST_AI_REMOTE_OLLAMA_GUIDE.md), and the included [Dockerfile](Dockerfile).
 
 ## Quick start
 

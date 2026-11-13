@@ -59,9 +59,31 @@ def test_bootstrap_runs_every_command_from_project_root(tmp_path):
         runner=runner,
         python_executable="test-python",
     )
-    assert len(calls) == 3
+    assert len(calls) == 5
     assert all(call[1] == {"cwd": tmp_path, "check": True} for call in calls)
+    assert calls[0][0][:3] == ["git", "clone", "--quiet"]
+    assert calls[0][0][-1] == "benchmarks/poisonedrag/upstream"
+    assert calls[1][0] == [
+        "git", "-C", "benchmarks/poisonedrag/upstream", "fetch", "--quiet", "origin",
+        "f660d72174f06b13fae5163ce656e7b235db858f",
+    ]
+    assert calls[2][0] == [
+        "git", "-C", "benchmarks/poisonedrag/upstream", "checkout", "--quiet", "--detach",
+        "f660d72174f06b13fae5163ce656e7b235db858f",
+    ]
     assert "beir>=2.0" in report.requirements
+
+
+def test_bootstrap_reuses_pinned_clone_without_recloning(tmp_path):
+    source_root = Path(__file__).resolve().parents[1]
+    (tmp_path / "pyproject.toml").write_bytes((source_root / "pyproject.toml").read_bytes())
+    (tmp_path / "benchmarks" / "poisonedrag" / "upstream" / ".git").mkdir(parents=True)
+
+    commands = bootstrap_commands(tmp_path, available_benchmarks(), python_executable="test-python")
+
+    assert all(command[:2] != ("git", "clone") for command in commands)
+    assert commands[0][3] == "fetch"
+    assert commands[1][3] == "checkout"
 
 
 def test_find_project_root_locates_checkout():

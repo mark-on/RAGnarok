@@ -75,13 +75,30 @@ def bootstrap_commands(
 ) -> tuple[tuple[str, ...], ...]:
     extras = benchmark_extras(benchmarks)
     requirements = project_requirements(root, extras)
-    submodules = tuple(
-        _BENCHMARK_SUBMODULES[benchmark.info.id]
+    official_sources = tuple(
+        (benchmark, _BENCHMARK_SUBMODULES[benchmark.info.id])
         for benchmark in benchmarks
         if benchmark.info.id in _BENCHMARK_SUBMODULES
     )
+    if (root / ".git").exists():
+        source_commands = ((
+            "git", "submodule", "update", "--init", "--recursive",
+            *(path for _benchmark, path in official_sources),
+        ),)
+    else:
+        source_command_list: list[tuple[str, ...]] = []
+        for benchmark, path in official_sources:
+            if not (root / path / ".git").is_dir():
+                source_command_list.append(
+                    ("git", "clone", "--quiet", benchmark.info.upstream_url, path)
+                )
+            source_command_list.extend((
+                ("git", "-C", path, "fetch", "--quiet", "origin", benchmark.info.upstream_commit),
+                ("git", "-C", path, "checkout", "--quiet", "--detach", benchmark.info.upstream_commit),
+            ))
+        source_commands = tuple(source_command_list)
     return (
-        ("git", "submodule", "update", "--init", "--recursive", *submodules),
+        *source_commands,
         (python_executable, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"),
         (python_executable, "-m", "pip", "install", *requirements),
     )
@@ -104,7 +121,11 @@ def bootstrap_environment(
         if log_path is not None:
             log_path.parent.mkdir(parents=True, exist_ok=True)
             log_handle = log_path.open("a", encoding="utf-8")
-        labels = ("Official submodules", "Python tooling", "Benchmark dependencies")
+        labels = (
+            *("Official benchmark sources" for _ in commands[:-2]),
+            "Python tooling",
+            "Benchmark dependencies",
+        )
         for index, (command, label) in enumerate(zip(commands, labels, strict=True)):
             if progress:
                 progress("dependencies", index, len(commands), label)
