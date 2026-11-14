@@ -1,32 +1,50 @@
 <p align="center">
-  <img src="assets/ragnarok-logo-wide.png" alt="RAGnarok logo" width="720">
+  <img src="assets/ragnarok-banner.png" alt="RAGnarok banner" width="900">
 </p>
 
-<h1 align="center">RAGnarok</h1>
+# RAGnarok
 
-<p align="center">
-  A reproducible, provider-independent framework for evaluating multiple LLM and RAG security datasets in one workflow.
-</p>
+**One workflow. Multiple LLM security benchmarks.**
 
-## What RAGnarok is
+Evaluating LLM security across different benchmarks can quickly become complicated. Each benchmark comes with its own setup, execution pipeline, evaluation methods, and output formats.
 
-RAGnarok runs multiple security benchmarks against one or more language models and converts their native results into a common, auditable format.
+Running multiple models across these benchmarks means dealing with different tools, interrupted evaluations, and results that aren't always directly comparable.
 
-It is designed for experiments where the same model family must be compared across sizes, providers, or quantization levels without manually running every dataset and rebuilding every report. A single evaluation can cover classic RAG knowledge poisoning, prompt injection, data exfiltration, direct attacks, and agentic tool-use attacks.
+**RAGnarok was built to address this problem.**
 
-RAGnarok does not replace the original benchmarks. Each integration preserves the benchmark-owned dataset, prompt construction, attack logic, evaluator, and native artifacts. The framework adds a shared execution layer, model-provider adapters, resume support, normalized results, and comparative reporting.
+RAGnarok is an open-source, modular Python framework that orchestrates LLM security evaluations through a unified interface.
 
-## Why use it
+Instead of replacing the original benchmarks, it integrates their execution workflows while preserving their native evaluation methods, metrics, and artifacts.
 
-- Run several security datasets through one CLI.
-- Evaluate one model or a group of model quantizations.
-- Use local models, remote Ollama GPUs, or API providers.
-- Keep subject inference serial to fit memory-constrained GPUs.
-- Parallelize safe auxiliary work such as remote Judge calls and setup preparation.
-- Resume interrupted evaluations without repeating completed work.
-- Preserve native benchmark evidence alongside normalized results.
-- Generate per-model, per-benchmark, taxonomy, performance, and comparative reports.
-- Add new datasets through a documented adapter contract that an AI coding agent can follow.
+## What can RAGnarok do?
+
+- **Multiple security benchmarks:** Run PoisonedRAG, SPIKEE, MPIB, and AgentDojo through a common workflow.
+- **Flexible model providers:** Evaluate local or remote Ollama models, API-based models, and custom HTTP endpoints.
+- **Experiment management:** Execute multiple model configurations, track progress, and resume interrupted evaluations.
+- **Comparative reporting:** Collect results and generate CSV, XLSX, and PDF reports, including security and utility metrics where available.
+- **Modular architecture:** Extend the framework with additional benchmarks through dedicated adapters.
+
+## How does it work?
+
+RAGnarok connects three main components:
+
+**Benchmark adapters** preserve each benchmark's original execution and evaluation logic.
+
+**Model provider adapters** manage communication with local models, remote inference services, and APIs.
+
+**The runner** coordinates evaluations, executes one subject model at a time, and organizes the results for reporting.
+
+The framework preserves native benchmark outputs alongside normalized records, allowing experiments to be analyzed without discarding their original evaluation details.
+
+## Getting started
+
+RAGnarok provides an interactive CLI for selecting benchmarks, configuring models, and running evaluations.
+
+After installation and setup, you can start an evaluation with:
+
+`ragnarok run`
+
+See the installation and quick-start instructions below for supported environments and dependencies.
 
 ## Supported security benchmarks
 
