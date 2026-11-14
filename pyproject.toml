@@ -22,17 +22,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-open-prompt-injection = [
-  "accelerate>=0.32",
-  "datasets==2.19.2",
-  "fschat==0.2.36",
-  "psutil>=5.9",
-  "rouge==1.0.1",
-  "sentencepiece>=0.2",
-  "torch>=2.3",
-  "tqdm==4.66.4",
-  "transformers>=4.42",
-]
 poisonedrag = [
   "beir>=2.0",
   "sentence-transformers>=3.0",

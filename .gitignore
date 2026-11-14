@@ -31,12 +31,19 @@ tmp_pdf_extract.txt
 .idea/
 .vscode/
 .agents/
+/AGENTS.md
 .DS_Store
 Thumbs.db
 .~lock.*#
 RAGnarok.bat
 dataset/v1_dataset.csv
 knowledge_base_v1/
+/evaluations/
+
+# Unsupported legacy adapter retained locally, excluded from the public project
+/benchmarks/open_prompt_injection/
+/src/ragnarok/benchmarks/open_prompt_injection.py
+/tests/test_open_prompt_injection.py
 
 # Runtime-generated benchmark workspaces, caches, and results
 benchmarks/*/workspace/
@@ -53,7 +60,7 @@ report*.pdf
 *.xls
 
 # Downloaded model weights and dependency archives
-models/
+/models/
 *.gguf
 *.safetensors
 *.ckpt

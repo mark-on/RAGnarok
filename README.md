@@ -36,23 +36,42 @@ RAGnarok connects three main components:
 
 The framework preserves native benchmark outputs alongside normalized records, allowing experiments to be analyzed without discarding their original evaluation details.
 
-```text
-Select benchmarks and evaluation size
-              |
-Select subject models and optional Judge
-              |
-Validate providers, dependencies, and prepared datasets
-              |
-Run every selected benchmark for model 1
-              |
-Run every selected benchmark for model 2, and so on
-              |
-Preserve native results and normalize comparable fields
-              |
-Write SQLite, JSONL, CSV, XLSX, and optional PDF reports
+```mermaid
+flowchart TB
+    subgraph configuration["Configuration and preparation"]
+        CLI["Interactive CLI or automation.toml"]
+        CONFIG["Validated experiment configuration<br/>Benchmarks, profiles, models and roles"]
+        SETUP["ragnarok setup<br/>Pinned sources and verified datasets"]
+        CLI --> CONFIG
+    end
+
+    subgraph execution["Evaluation runtime"]
+        RUNNER["Runner and preflight<br/>Model-first scheduling, checkpoint and resume"]
+        BENCH["Benchmark adapters and native runtimes<br/>PoisonedRAG · MPIB · SPIKEE · AgentDojo"]
+        PROVIDERS["Model provider adapters<br/>Ollama · OpenAI-compatible<br/>Anthropic · Custom HTTP"]
+        RUNNER --> BENCH
+        BENCH <-->|"Subject; Judge or attacker when required"| PROVIDERS
+    end
+
+    subgraph results["Evidence and reporting"]
+        NATIVE["Native evaluation and artifacts<br/>Benchmark-owned metrics and evidence"]
+        NORMALIZE["UniversalCase normalization<br/>Retains native evaluation evidence"]
+        STORE[("SQLite<br/>Canonical combined results")]
+        JSONL["JSONL<br/>Lossless portable export"]
+        REPORTS["Derived reports<br/>CSV · JSON · XLSX · Optional comparative PDF"]
+        NATIVE --> NORMALIZE --> STORE
+        STORE --> JSONL
+        STORE --> REPORTS
+    end
+
+    CONFIG --> RUNNER
+    SETUP -.->|"Prepared assets validated before execution"| RUNNER
+    BENCH --> NATIVE
 ```
 
 The execution order is model-first. One model completes all selected benchmarks before the next model is loaded. Subject inference is always limited to one worker; this avoids loading or generating with multiple large models at the same time.
+
+Solid arrows show execution, model communication, and result flow; the dotted arrow shows the setup prerequisite. Judge work may run with bounded concurrency and, for MPIB, can be deferred to a recoverable disk queue. Native evaluation remains authoritative, and reports consume stored results without calling models.
 
 ## Getting started
 
@@ -197,26 +216,6 @@ The reports include, where supported by the selected datasets:
 - model and quantization comparisons;
 - source-run provenance and known coverage gaps.
 
-## Published evaluation matrix
-
-Aggregate results from the completed Llama 3.2 3B Instruct and Qwen 2.5 7B
-Instruct quantization matrices are published under [`evaluations/`](evaluations/README.md).
-Both families include FP16, Q8, Q4, and Q2 configurations, with 1,360 evaluable
-attack cases per configuration across SPIKEE, PoisonedRAG, MPIB, and AgentDojo.
-
-The main observation is that security does not vary monotonically with
-quantization. Llama FP16, Q8, and Q4 remain within 0.5 percentage points of
-overall ASR, while Qwen Q4 records lower ASR than FP16 but Q2 does not record a
-further reduction on every benchmark. Lower aggregate ASR can also coincide
-with lower utility or worse behavior on a specific attack family. The results therefore support a
-security–utility–cost Pareto analysis rather than a claim that quantization
-alone consistently improves or degrades security.
-
-Only aggregate metrics and SHA-256 provenance are published. Raw prompts,
-responses, contexts, payloads, benchmark workspaces, and restricted MPIB
-material remain excluded. These are single completed runs and must not be
-interpreted as repeated-seed causal evidence.
-
 ## Comparative PDF reports
 
 Generate a PDF from stored results without repeating inference or Judge calls:
@@ -247,14 +246,13 @@ The repository template keeps example models disabled until exact Ollama tags ar
 
 ## Adding a new dataset with AI
 
-RAGnarok includes [AGENTS.md](AGENTS.md), a machine-readable engineering guide for coding agents. It explains the architecture, invariants, adapter contract, output structure, test matrix, security rules, and acceptance checklist.
-
-This makes AI-assisted integration practical: a developer can give an AI coding agent the new dataset, paper, or official repository and ask it to implement the adapter using the existing framework conventions.
+A developer can give an AI coding agent the new dataset, paper, or official repository and ask it to implement the adapter using the existing framework conventions. Start with `src/ragnarok/core/benchmark.py`, the registered adapters, and their offline tests.
 
 An effective request is:
 
 ```text
-Read AGENTS.md completely. Analyze the official <DATASET OR BENCHMARK> repository,
+Read the BenchmarkAdapter contract and existing adapters and tests.
+Analyze the official <DATASET OR BENCHMARK> repository,
 paper, license, prompts, splits, and evaluator. Propose an integration plan that
 preserves the native protocol. Then implement a pinned BenchmarkAdapter, setup
 validation, UniversalCase normalization, native artifacts, resume behavior, and

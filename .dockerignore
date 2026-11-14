@@ -3,6 +3,12 @@
 .pytest_cache
 .ragnarok
 .cache
+.agents
+.vscode
+AGENTS.md
+tests
+evaluations
+*.egg-info
 .env
 .env.*
 outputs
@@ -22,7 +28,8 @@ benchmarks/*/cache
 benchmarks/*/results
 benchmarks/mpib/upstream
 benchmarks/mpib/payload_registry.json
-benchmarks/open_prompt_injection/upstream
+benchmarks/open_prompt_injection
+src/ragnarok/benchmarks/open_prompt_injection.py
 benchmarks/poisonedrag/upstream
 __pycache__
 *.pyc
