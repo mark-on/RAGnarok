@@ -24,7 +24,7 @@ Instead of replacing the original benchmarks, it integrates their execution work
 - **Comparative reporting:** Collect results and generate CSV, XLSX, and PDF reports, including security and utility metrics where available.
 - **Modular architecture:** Extend the framework with additional benchmarks through dedicated adapters.
 
-## How does it work?
+## How it works
 
 RAGnarok connects three main components:
 
@@ -35,6 +35,24 @@ RAGnarok connects three main components:
 **The runner** coordinates evaluations, executes one subject model at a time, and organizes the results for reporting.
 
 The framework preserves native benchmark outputs alongside normalized records, allowing experiments to be analyzed without discarding their original evaluation details.
+
+```text
+Select benchmarks and evaluation size
+              |
+Select subject models and optional Judge
+              |
+Validate providers, dependencies, and prepared datasets
+              |
+Run every selected benchmark for model 1
+              |
+Run every selected benchmark for model 2, and so on
+              |
+Preserve native results and normalize comparable fields
+              |
+Write SQLite, JSONL, CSV, XLSX, and optional PDF reports
+```
+
+The execution order is model-first. One model completes all selected benchmarks before the next model is loaded. Subject inference is always limited to one worker; this avoids loading or generating with multiple large models at the same time.
 
 ## Getting started
 
@@ -56,26 +74,6 @@ See the installation and quick-start instructions below for supported environmen
 | [AgentDojo](https://github.com/ethz-spylab/agentdojo) | Agentic indirect injection, unauthorized actions, and tool misuse | 100 / 300 / 629 | Official utility and security checks |
 
 Reduced profiles are deterministic subsets. Full profiles preserve the complete declared RAGnarok evaluation matrix for each integration. The selected profile, upstream revision, model configuration, Judge configuration, and relevant hashes are frozen in the run manifest.
-
-## How it works
-
-```text
-Select benchmarks and evaluation size
-              |
-Select subject models and optional Judge
-              |
-Validate providers, dependencies, and prepared datasets
-              |
-Run every selected benchmark for model 1
-              |
-Run every selected benchmark for model 2, and so on
-              |
-Preserve native results and normalize comparable fields
-              |
-Write SQLite, JSONL, CSV, XLSX, and optional PDF reports
-```
-
-The execution order is model-first. One model completes all selected benchmarks before the next model is loaded. Subject inference is always limited to one worker; this avoids loading or generating with multiple large models at the same time.
 
 ## Installation
 
@@ -111,7 +109,7 @@ Benchmark datasets, prepared caches, model weights, generated outputs, and crede
 
 MPIB is access-gated by its authors. Setup may request a Hugging Face token after the user accepts the dataset terms. Credentials are stored through the operating-system credential store and are not written to result manifests. Make sure the machine has enough free disk space and network access before starting setup.
 
-For remote or containerized installations, see the [RunPod deployment guide](RUNPOD_DEPLOYMENT_GUIDE.md), the [Vast.ai remote Ollama guide](VAST_AI_REMOTE_OLLAMA_GUIDE.md), and the included [Dockerfile](Dockerfile).
+For containerized installations, see the included [Dockerfile](Dockerfile). Remote Ollama configuration is described in the Model providers section below.
 
 ## Quick start
 
